@@ -22,6 +22,7 @@ function Reportes() {
 
   useEffect(() => {
     cargarReportes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function cargarReportes(filtro = {}) {
@@ -31,13 +32,13 @@ function Reportes() {
     try {
       const params = filtro.desde && filtro.hasta ? filtro : {};
 
-   const [respMasVendidos, respMenosVendidos, respMoneda, respMetodo, respTasa] = await Promise.all([
-  api.get('/reportes/productos-mas-vendidos', { params: { ...params, limite: 50, orden: 'desc' } }),
-  api.get('/reportes/menor-rotacion', { params: { ...params, limite: 50 } }),
-  api.get('/reportes/ventas-por-moneda', { params }),
-  api.get('/reportes/ventas-por-metodo-pago', { params }),
-  api.get('/tasas/actual')
-]);
+      const [respMasVendidos, respMenosVendidos, respMoneda, respMetodo, respTasa] = await Promise.all([
+        api.get('/reportes/productos-mas-vendidos', { params: { ...params, limite: 50, orden: 'desc' } }),
+        api.get('/reportes/menor-rotacion', { params: { ...params, limite: 50 } }),
+        api.get('/reportes/ventas-por-moneda', { params }),
+        api.get('/reportes/ventas-por-metodo-pago', { params }),
+        api.get('/tasas/actual')
+      ]);
 
       setProductosMasVendidos(respMasVendidos.data);
       setProductosMenosVendidos(respMenosVendidos.data);
@@ -123,7 +124,7 @@ function Reportes() {
       >
         <h1 className="texto-display" style={{ fontSize: '22px' }}>Reportes</h1>
 
-        <div style={{ display: 'flex', gap: 'var(--espacio-lg)', alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 'var(--espacio-lg)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ textAlign: 'right' }}>
             <label style={estiloLabelMoneda}>Ver tortas en</label>
             <div style={{ display: 'flex', gap: '4px' }}>
@@ -158,7 +159,7 @@ function Reportes() {
 
       <form
         onSubmit={aplicarFiltro}
-        style={{ display: 'flex', gap: 'var(--espacio-sm)', alignItems: 'flex-end', marginBottom: 'var(--espacio-xl)' }}
+        style={{ display: 'flex', gap: 'var(--espacio-sm)', alignItems: 'flex-end', marginBottom: 'var(--espacio-xl)', flexWrap: 'wrap' }}
       >
         <CampoFecha etiqueta="Desde" valor={rango.desde} onCambiar={(v) => setRango((prev) => ({ ...prev, desde: v }))} />
         <CampoFecha etiqueta="Hasta" valor={rango.hasta} onCambiar={(v) => setRango((prev) => ({ ...prev, hasta: v }))} />
@@ -182,7 +183,7 @@ function Reportes() {
       {!cargando && (
         <>
           <div
-          className="grid-kpi"
+            className="grid-kpi"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
@@ -283,7 +284,7 @@ function RankingProductos({ titulo, subtitulo, productos, totalProductos, pagina
         </span>
       </div>
 
-      <p style={{ fontSize: '16px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-sm)' }}>
+      <p style={{ fontSize: '14px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-sm)' }}>
         {subtitulo}
       </p>
 
@@ -292,47 +293,49 @@ function RankingProductos({ titulo, subtitulo, productos, totalProductos, pagina
       )}
 
       {productos.length > 0 && (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
-              <th style={estiloTh}></th>
-              <th style={estiloTh}>Producto</th>
-              <th style={{ ...estiloTh, textAlign: 'right' }}>Cant.</th>
-              <th style={{ ...estiloTh, textAlign: 'right' }}>Total exacto</th>
-            </tr>
-          </thead>
-          <tbody>
-            {productos.map((p) => (
-              <tr key={`${p.id}-${p.moneda}`} style={{ borderBottom: 'var(--borde-fino)' }}>
-                <td style={estiloTd}>
-                  <span
-                    className="texto-display"
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '13px',
-                      color: 'var(--blanco-hueso)',
-                      backgroundColor: colorPosicion
-                    }}
-                  >
-                    {p.cantidad_total}
-                  </span>
-                </td>
-                <td style={estiloTd}>
-                  <p style={{ margin: 0, fontWeight: 600 }}>{p.nombre}</p>
-                  <p style={{ margin: 0, fontSize: '14px', color: 'var(--gris-concreto)' }}>{p.codigo}</p>
-                </td>
-                <td className="cifra-dinero" style={estiloTd}>{p.cantidad_total}</td>
-                <td className="cifra-dinero" style={estiloTd}>
-                  {Number(p.total_original).toFixed(2)} {p.moneda}
-                </td>
+        <div className="tabla-scroll">
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+                <th style={estiloTh}></th>
+                <th style={estiloTh}>Producto</th>
+                <th style={{ ...estiloTh, textAlign: 'right' }}>Cant.</th>
+                <th style={{ ...estiloTh, textAlign: 'right' }}>Total exacto</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {productos.map((p) => (
+                <tr key={`${p.id}-${p.moneda}`} style={{ borderBottom: 'var(--borde-fino)' }}>
+                  <td style={estiloTd}>
+                    <span
+                      className="texto-display"
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '13px',
+                        color: 'var(--blanco-hueso)',
+                        backgroundColor: colorPosicion
+                      }}
+                    >
+                      {p.cantidad_total}
+                    </span>
+                  </td>
+                  <td style={estiloTd}>
+                    <p style={{ margin: 0, fontWeight: 600 }}>{p.nombre}</p>
+                    <p style={{ margin: 0, fontSize: '14px', color: 'var(--gris-concreto)' }}>{p.codigo}</p>
+                  </td>
+                  <td className="cifra-dinero" style={estiloTd}>{p.cantidad_total}</td>
+                  <td className="cifra-dinero" style={estiloTd}>
+                    {Number(p.total_original).toFixed(2)} {p.moneda}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {totalPaginas > 1 && (

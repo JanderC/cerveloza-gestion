@@ -20,13 +20,14 @@ function Ventas() {
   const [mostrarVueltos, setMostrarVueltos] = useState(false);
   const [monedaVuelto, setMonedaVuelto] = useState('USD');
   const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
-    const [busquedaVentas, setBusquedaVentas] = useState('');
-    const [paginaVentas, setPaginaVentas] = useState(1);
-    const VENTAS_POR_PAGINA = 5;
+  const [busquedaVentas, setBusquedaVentas] = useState('');
+  const [paginaVentas, setPaginaVentas] = useState(1);
+  const VENTAS_POR_PAGINA = 5;
+
   useEffect(() => {
-  cargarDatosIniciales();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
+    cargarDatosIniciales();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function cargarDatosIniciales() {
     setCargandoInicial(true);
@@ -250,18 +251,6 @@ function Ventas() {
     }
   }
 
-  const ventasHoyFiltradas = ventasHoy.filter((v) => {
-  const termino = busquedaVentas.trim().toLowerCase();
-  if (!termino) return true;
-  return v.numero_venta.toLowerCase().includes(termino) || v.vendedor.toLowerCase().includes(termino);
-});
-
-const totalPaginasVentas = Math.max(1, Math.ceil(ventasHoyFiltradas.length / VENTAS_POR_PAGINA));
-const ventasHoyPagina = ventasHoyFiltradas.slice(
-  (paginaVentas - 1) * VENTAS_POR_PAGINA,
-  paginaVentas * VENTAS_POR_PAGINA
-);
-
   const totalesHoyPorMoneda = ventasHoy.reduce(
     (acc, v) => ({
       usd: acc.usd + Number(v.monto_usd || 0),
@@ -269,6 +258,18 @@ const ventasHoyPagina = ventasHoyFiltradas.slice(
       ves: acc.ves + Number(v.monto_ves || 0)
     }),
     { usd: 0, cop: 0, ves: 0 }
+  );
+
+  const ventasHoyFiltradas = ventasHoy.filter((v) => {
+    const termino = busquedaVentas.trim().toLowerCase();
+    if (!termino) return true;
+    return v.numero_venta.toLowerCase().includes(termino) || v.vendedor.toLowerCase().includes(termino);
+  });
+
+  const totalPaginasVentas = Math.max(1, Math.ceil(ventasHoyFiltradas.length / VENTAS_POR_PAGINA));
+  const ventasHoyPagina = ventasHoyFiltradas.slice(
+    (paginaVentas - 1) * VENTAS_POR_PAGINA,
+    paginaVentas * VENTAS_POR_PAGINA
   );
 
   return (
@@ -280,7 +281,9 @@ const ventasHoyPagina = ventasHoyFiltradas.slice(
           alignItems: 'flex-end',
           marginBottom: 'var(--espacio-lg)',
           borderBottom: '3px solid var(--grafito)',
-          paddingBottom: 'var(--espacio-md)'
+          paddingBottom: 'var(--espacio-md)',
+          flexWrap: 'wrap',
+          gap: 'var(--espacio-md)'
         }}
       >
         <h1 className="texto-display" style={{ fontSize: '22px' }}>Nueva venta</h1>
@@ -399,49 +402,49 @@ const ventasHoyPagina = ventasHoyFiltradas.slice(
 
           {carrito.length > 0 && (
             <div className="tabla-scroll">
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
-                  <th style={estiloTh}>Producto</th>
-                  <th style={{ ...estiloTh, textAlign: 'center' }}>Cant.</th>
-                  <th style={{ ...estiloTh, textAlign: 'right' }}>Subtotal ({monedaVenta})</th>
-                  <th style={estiloTh}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {carrito.map((item) => (
-                  <tr key={item.producto.id} style={{ borderBottom: 'var(--borde-fino)' }}>
-                    <td style={estiloTd}>{item.producto.nombre}</td>
-                    <td style={{ ...estiloTd, textAlign: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                        <button
-                          onClick={() => cambiarCantidad(item.producto.id, Math.max(1, item.cantidad - 1))}
-                          style={estiloBotonCantidad}
-                        >
-                          −
-                        </button>
-                        <span style={{ minWidth: '24px', textAlign: 'center', fontSize: '14px' }}>{item.cantidad}</span>
-                        <button
-                          onClick={() => cambiarCantidad(item.producto.id, item.cantidad + 1)}
-                          style={estiloBotonCantidad}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </td>
-                    <td className="cifra-dinero" style={estiloTd}>
-                      {convertirDesdeUSD(precioUnitarioUSD(item.producto) * item.cantidad, monedaVenta).toFixed(2)}
-                    </td>
-                    <td style={{ ...estiloTd, textAlign: 'right' }}>
-                      <button onClick={() => quitarDelCarrito(item.producto.id)} style={estiloBotonIcono}>
-                        <FiTrash2 size={16} />
-                      </button>
-                    </td>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+                    <th style={estiloTh}>Producto</th>
+                    <th style={{ ...estiloTh, textAlign: 'center' }}>Cant.</th>
+                    <th style={{ ...estiloTh, textAlign: 'right' }}>Subtotal ({monedaVenta})</th>
+                    <th style={estiloTh}></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-                </div>
+                </thead>
+                <tbody>
+                  {carrito.map((item) => (
+                    <tr key={item.producto.id} style={{ borderBottom: 'var(--borde-fino)' }}>
+                      <td style={estiloTd}>{item.producto.nombre}</td>
+                      <td style={{ ...estiloTd, textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <button
+                            onClick={() => cambiarCantidad(item.producto.id, Math.max(1, item.cantidad - 1))}
+                            style={estiloBotonCantidad}
+                          >
+                            −
+                          </button>
+                          <span style={{ minWidth: '24px', textAlign: 'center', fontSize: '14px' }}>{item.cantidad}</span>
+                          <button
+                            onClick={() => cambiarCantidad(item.producto.id, item.cantidad + 1)}
+                            style={estiloBotonCantidad}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+                      <td className="cifra-dinero" style={estiloTd}>
+                        {convertirDesdeUSD(precioUnitarioUSD(item.producto) * item.cantidad, monedaVenta).toFixed(2)}
+                      </td>
+                      <td style={{ ...estiloTd, textAlign: 'right' }}>
+                        <button onClick={() => quitarDelCarrito(item.producto.id)} style={estiloBotonIcono}>
+                          <FiTrash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           <div
@@ -461,106 +464,108 @@ const ventasHoyPagina = ventasHoyFiltradas.slice(
           </div>
 
           <div style={{ marginTop: 'var(--espacio-xl)' }}>
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--espacio-sm)', flexWrap: 'wrap', gap: '8px' }}>
-    <h2 className="texto-display" style={{ fontSize: '16px' }}>Ventas de hoy</h2>
-    <span style={{ fontSize: '14px', color: 'var(--gris-concreto)' }}>
-      {ventasHoy.length} venta{ventasHoy.length !== 1 ? 's' : ''}
-      {totalesHoyPorMoneda.usd > 0 && ` · $${totalesHoyPorMoneda.usd.toFixed(2)} USD`}
-      {totalesHoyPorMoneda.cop > 0 && ` · ${totalesHoyPorMoneda.cop.toFixed(2)} COP`}
-      {totalesHoyPorMoneda.ves > 0 && ` · ${totalesHoyPorMoneda.ves.toFixed(2)} VES`}
-    </span>
-  </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--espacio-sm)', flexWrap: 'wrap', gap: '8px' }}>
+              <h2 className="texto-display" style={{ fontSize: '16px' }}>Ventas de hoy</h2>
+              <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
+                {ventasHoy.length} venta{ventasHoy.length !== 1 ? 's' : ''}
+                {totalesHoyPorMoneda.usd > 0 && ` · $${totalesHoyPorMoneda.usd.toFixed(2)} USD`}
+                {totalesHoyPorMoneda.cop > 0 && ` · ${totalesHoyPorMoneda.cop.toFixed(2)} COP`}
+                {totalesHoyPorMoneda.ves > 0 && ` · ${totalesHoyPorMoneda.ves.toFixed(2)} VES`}
+              </span>
+            </div>
 
-  {ventasHoy.length > 5 && (
-    <input
-      placeholder="Buscar por folio o vendedor..."
-      value={busquedaVentas}
-      onChange={(e) => {
-        setBusquedaVentas(e.target.value);
-        setPaginaVentas(1);
-      }}
-      style={{ ...estiloInput, width: '100%', marginBottom: 'var(--espacio-sm)' }}
-    />
-  )}
+            {ventasHoy.length > 5 && (
+              <input
+                placeholder="Buscar por folio o vendedor..."
+                value={busquedaVentas}
+                onChange={(e) => {
+                  setBusquedaVentas(e.target.value);
+                  setPaginaVentas(1);
+                }}
+                style={{ ...estiloInput, width: '100%', marginBottom: 'var(--espacio-sm)' }}
+              />
+            )}
 
-  {cargandoInicial && <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Cargando...</p>}
-  {!cargandoInicial && ventasHoy.length === 0 && (
-    <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Todavía no hay ventas registradas hoy.</p>
-  )}
-  {!cargandoInicial && ventasHoy.length > 0 && ventasHoyFiltradas.length === 0 && (
-    <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Sin resultados para esa búsqueda.</p>
-  )}
+            {cargandoInicial && <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Cargando...</p>}
+            {!cargandoInicial && ventasHoy.length === 0 && (
+              <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Todavía no hay ventas registradas hoy.</p>
+            )}
+            {!cargandoInicial && ventasHoy.length > 0 && ventasHoyFiltradas.length === 0 && (
+              <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Sin resultados para esa búsqueda.</p>
+            )}
 
-  {!cargandoInicial && ventasHoyPagina.length > 0 && (
-    <div className="tabla-scroll">
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
-            <th style={estiloTh}>Hora</th>
-            <th style={estiloTh}>Folio</th>
-            <th style={estiloTh}>Vendedor</th>
-            <th style={{ ...estiloTh, textAlign: 'right' }}>USD</th>
-            <th style={{ ...estiloTh, textAlign: 'right' }}>COP</th>
-            <th style={{ ...estiloTh, textAlign: 'right' }}>VES</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ventasHoyPagina.map((v) => (
-            <tr
-              key={v.id}
-              onClick={() => verDetalleVenta(v.id)}
-              style={{ borderBottom: 'var(--borde-fino)', cursor: 'pointer' }}
-            >
-              <td style={estiloTd}>{new Date(v.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-              <td style={estiloTd}>{v.numero_venta}</td>
-              <td style={estiloTd}>{v.vendedor}</td>
-              <td className="cifra-dinero" style={estiloTd}>
-                {Number(v.monto_usd) > 0 ? Number(v.monto_usd).toFixed(2) : '—'}
-              </td>
-              <td className="cifra-dinero" style={estiloTd}>
-                {Number(v.monto_cop) > 0 ? Number(v.monto_cop).toFixed(2) : '—'}
-              </td>
-              <td className="cifra-dinero" style={estiloTd}>
-                {Number(v.monto_ves) > 0 ? Number(v.monto_ves).toFixed(2) : '—'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            {!cargandoInicial && ventasHoyPagina.length > 0 && (
+              <>
+                <div className="tabla-scroll">
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+                        <th style={estiloTh}>Hora</th>
+                        <th style={estiloTh}>Folio</th>
+                        <th style={estiloTh}>Vendedor</th>
+                        <th style={{ ...estiloTh, textAlign: 'right' }}>USD</th>
+                        <th style={{ ...estiloTh, textAlign: 'right' }}>COP</th>
+                        <th style={{ ...estiloTh, textAlign: 'right' }}>VES</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ventasHoyPagina.map((v) => (
+                        <tr
+                          key={v.id}
+                          onClick={() => verDetalleVenta(v.id)}
+                          style={{ borderBottom: 'var(--borde-fino)', cursor: 'pointer' }}
+                        >
+                          <td style={estiloTd}>{new Date(v.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                          <td style={estiloTd}>{v.numero_venta}</td>
+                          <td style={estiloTd}>{v.vendedor}</td>
+                          <td className="cifra-dinero" style={estiloTd}>
+                            {Number(v.monto_usd) > 0 ? Number(v.monto_usd).toFixed(2) : '—'}
+                          </td>
+                          <td className="cifra-dinero" style={estiloTd}>
+                            {Number(v.monto_cop) > 0 ? Number(v.monto_cop).toFixed(2) : '—'}
+                          </td>
+                          <td className="cifra-dinero" style={estiloTd}>
+                            {Number(v.monto_ves) > 0 ? Number(v.monto_ves).toFixed(2) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-      {totalPaginasVentas > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 'var(--espacio-md)', marginTop: 'var(--espacio-sm)' }}>
-          <button
-            onClick={() => setPaginaVentas((p) => Math.max(1, p - 1))}
-            disabled={paginaVentas === 1}
-            style={{ ...estiloBotonSecundario, opacity: paginaVentas === 1 ? 0.4 : 1, padding: '6px 12px', fontSize: '12px' }}
-          >
-            Anterior
-          </button>
-          <span style={{ fontSize: '12px', color: 'var(--gris-concreto)' }}>
-            Página {paginaVentas} de {totalPaginasVentas}
-          </span>
-          <button
-            onClick={() => setPaginaVentas((p) => Math.min(totalPaginasVentas, p + 1))}
-            disabled={paginaVentas === totalPaginasVentas}
-            style={{ ...estiloBotonSecundario, opacity: paginaVentas === totalPaginasVentas ? 0.4 : 1, padding: '6px 12px', fontSize: '12px' }}
-          >
-            Siguiente
-          </button>
-        </div>
-      )}
-    </div>
-  )}
-</div>
+                {totalPaginasVentas > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 'var(--espacio-md)', marginTop: 'var(--espacio-sm)' }}>
+                    <button
+                      onClick={() => setPaginaVentas((p) => Math.max(1, p - 1))}
+                      disabled={paginaVentas === 1}
+                      style={{ ...estiloBotonSecundario, opacity: paginaVentas === 1 ? 0.4 : 1, padding: '6px 12px', fontSize: '12px' }}
+                    >
+                      Anterior
+                    </button>
+                    <span style={{ fontSize: '12px', color: 'var(--gris-concreto)' }}>
+                      Página {paginaVentas} de {totalPaginasVentas}
+                    </span>
+                    <button
+                      onClick={() => setPaginaVentas((p) => Math.min(totalPaginasVentas, p + 1))}
+                      disabled={paginaVentas === totalPaginasVentas}
+                      style={{ ...estiloBotonSecundario, opacity: paginaVentas === totalPaginasVentas ? 0.4 : 1, padding: '6px 12px', fontSize: '12px' }}
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         <div className="superficie" style={{ padding: 'var(--espacio-lg)', alignSelf: 'start' }}>
           <h2 className="texto-display" style={{ fontSize: '19px', marginBottom: 'var(--espacio-md)' }}>
-  Pago
-</h2>
+            Pago
+          </h2>
 
           {tasa && (
-            <p style={{ fontSize: '16px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-md)' }}>
+            <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-md)' }}>
               Tasa vigente: 1 USD = {Number(tasa.usd_ves).toFixed(2)} VES · {Number(tasa.usd_cop).toFixed(2)} COP
             </p>
           )}
@@ -592,16 +597,16 @@ const ventasHoyPagina = ventasHoyFiltradas.slice(
                     ))}
                   </select>
                   <input
-  type="text"
-  inputMode="decimal"
-  placeholder="Monto"
-  value={pago.monto}
-  onChange={(e) => {
-    const valor = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
-    actualizarPago(index, 'monto', valor);
-  }}
-  style={{ ...estiloInput, flex: '0 0 100px', fontSize: '15px', fontWeight: 600 }}
-/>
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Monto"
+                    value={pago.monto}
+                    onChange={(e) => {
+                      const valor = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+                      actualizarPago(index, 'monto', valor);
+                    }}
+                    style={{ ...estiloInput, flex: '0 0 100px', fontSize: '15px', fontWeight: 600 }}
+                  />
                   {pagos.length > 1 && (
                     <button onClick={() => quitarLineaPago(index)} style={estiloBotonIcono}>
                       <FiTrash2 size={14} />
@@ -625,61 +630,60 @@ const ventasHoyPagina = ventasHoyFiltradas.slice(
             + Agregar otra forma de pago
           </button>
 
-         <div
-  style={{
-    backgroundColor: 'var(--gris-humo)',
-    borderLeft: '4px solid var(--rojo-cerveloza)',
-    padding: 'var(--espacio-md)',
-    marginBottom: 'var(--espacio-md)'
-  }}
->
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--espacio-sm)' }}>
-    <span style={{ fontSize: '14px', color: 'var(--gris-concreto)', fontWeight: 600 }}>Cuenta a pagar</span>
-    <span className="texto-display cifra-dinero" style={{ fontSize: '22px' }}>
-      {totalEnMonedaVenta.toFixed(2)} {monedaVenta}
-    </span>
-  </div>
+          <div
+            style={{
+              backgroundColor: 'var(--gris-humo)',
+              borderLeft: '4px solid var(--rojo-cerveloza)',
+              padding: 'var(--espacio-md)',
+              marginBottom: 'var(--espacio-md)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--espacio-sm)' }}>
+              <span style={{ fontSize: '14px', color: 'var(--gris-concreto)', fontWeight: 600 }}>Cuenta a pagar</span>
+              <span className="texto-display cifra-dinero" style={{ fontSize: '22px' }}>
+                {totalEnMonedaVenta.toFixed(2)} {monedaVenta}
+              </span>
+            </div>
 
-  {/* Desglose real: cuánto entró en cada moneda usada, sin forzar todo a una sola */}
-  <div style={{ borderTop: 'var(--borde-fino)', paddingTop: 'var(--espacio-sm)' }}>
-    <span style={{ fontSize: '14px', color: 'var(--gris-concreto)', display: 'block', marginBottom: '6px' }}>
-      Recibido
-    </span>
-    {pagos
-      .filter((p) => p.monto && Number(p.monto) > 0)
-      .map((p, i) => (
-        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-          <span style={{ fontSize: '15px', color: 'var(--grafito)' }}>
-            {metodosPago.find((m) => m.id === Number(p.metodo_pago_id))?.nombre || 'Pago'}
-          </span>
-          <span className="texto-display cifra-dinero" style={{ fontSize: '17px' }}>
-            {Number(p.monto).toFixed(2)} {p.moneda}
-          </span>
-        </div>
-      ))}
-    {pagos.filter((p) => p.monto && Number(p.monto) > 0).length === 0 && (
-      <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>Aún no has ingresado ningún monto.</span>
-    )}
-  </div>
+            <div style={{ borderTop: 'var(--borde-fino)', paddingTop: 'var(--espacio-sm)' }}>
+              <span style={{ fontSize: '12px', color: 'var(--gris-concreto)', display: 'block', marginBottom: '6px' }}>
+                Recibido
+              </span>
+              {pagos
+                .filter((p) => p.monto && Number(p.monto) > 0)
+                .map((p, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '15px', color: 'var(--grafito)' }}>
+                      {metodosPago.find((m) => m.id === Number(p.metodo_pago_id))?.nombre || 'Pago'}
+                    </span>
+                    <span className="texto-display cifra-dinero" style={{ fontSize: '17px' }}>
+                      {Number(p.monto).toFixed(2)} {p.moneda}
+                    </span>
+                  </div>
+                ))}
+              {pagos.filter((p) => p.monto && Number(p.monto) > 0).length === 0 && (
+                <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>Aún no has ingresado ningún monto.</span>
+              )}
+            </div>
 
-  {faltanteUSD > 0.05 && (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        borderTop: '2px solid var(--rojo-cerveloza)',
-        marginTop: 'var(--espacio-sm)',
-        paddingTop: 'var(--espacio-sm)'
-      }}
-    >
-      <span style={{ fontSize: '14px', color: 'var(--rojo-cerveloza)', fontWeight: 700 }}>Falta por cobrar</span>
-      <span className="texto-display cifra-dinero" style={{ fontSize: '20px', color: 'var(--rojo-cerveloza)' }}>
-        {convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} {monedaVenta}
-      </span>
-    </div>
-  )}
-</div>
+            {faltanteUSD > 0.05 && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderTop: '2px solid var(--rojo-cerveloza)',
+                  marginTop: 'var(--espacio-sm)',
+                  paddingTop: 'var(--espacio-sm)'
+                }}
+              >
+                <span style={{ fontSize: '14px', color: 'var(--rojo-cerveloza)', fontWeight: 700 }}>Falta por cobrar</span>
+                <span className="texto-display cifra-dinero" style={{ fontSize: '20px', color: 'var(--rojo-cerveloza)' }}>
+                  {convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} {monedaVenta}
+                </span>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={() => setMostrarVueltos(!mostrarVueltos)}
@@ -696,7 +700,7 @@ const ventasHoyPagina = ventasHoyFiltradas.slice(
 
           {mostrarVueltos && (
             <div className="superficie" style={{ padding: 'var(--espacio-md)', marginBottom: 'var(--espacio-lg)' }}>
-              <label style={{ display: 'block', fontSize: '14px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-xs)' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-xs)' }}>
                 Devolver vuelto en
               </label>
               <div style={{ display: 'flex', gap: '4px', marginBottom: 'var(--espacio-sm)' }}>
@@ -723,7 +727,7 @@ const ventasHoyPagina = ventasHoyFiltradas.slice(
               </div>
 
               {!hayVuelto ? (
-                <p style={{ fontSize: '14px', color: 'var(--gris-concreto)', margin: 0 }}>
+                <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', margin: 0 }}>
                   No hay excedente que devolver todavía.
                 </p>
               ) : (
@@ -822,7 +826,7 @@ const estiloInput = {
 const estiloTh = {
   textAlign: 'left',
   padding: 'var(--espacio-sm)',
-  fontSize: '14px',
+  fontSize: '12px',
   color: 'var(--gris-concreto)'
 };
 
