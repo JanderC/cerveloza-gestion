@@ -314,7 +314,7 @@ const ventasHoyPagina = ventasHoyFiltradas.slice(
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 'var(--espacio-xl)' }}>
+      <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 'var(--espacio-xl)' }}>
         <div>
           <div style={{ position: 'relative', marginBottom: 'var(--espacio-lg)' }}>
             <div style={{ position: 'relative' }}>
@@ -398,6 +398,7 @@ const ventasHoyPagina = ventasHoyFiltradas.slice(
           )}
 
           {carrito.length > 0 && (
+            <div className="tabla-scroll">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
@@ -440,6 +441,7 @@ const ventasHoyPagina = ventasHoyFiltradas.slice(
                 ))}
               </tbody>
             </table>
+                </div>
           )}
 
           <div
@@ -490,7 +492,7 @@ const ventasHoyPagina = ventasHoyFiltradas.slice(
   )}
 
   {!cargandoInicial && ventasHoyPagina.length > 0 && (
-    <>
+    <div className="tabla-scroll">
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
@@ -547,7 +549,7 @@ const ventasHoyPagina = ventasHoyFiltradas.slice(
           </button>
         </div>
       )}
-    </>
+    </div>
   )}
 </div>
         </div>

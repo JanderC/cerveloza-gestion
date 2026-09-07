@@ -182,6 +182,7 @@ function Reportes() {
       {!cargando && (
         <>
           <div
+          className="grid-kpi"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
@@ -224,7 +225,7 @@ function Reportes() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--espacio-xl)', marginBottom: 'var(--espacio-xl)' }}>
+          <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--espacio-xl)', marginBottom: 'var(--espacio-xl)' }}>
             <BloqueTorta
               titulo="Ventas por moneda"
               datos={ventasPorMoneda.map((v) => ({ moneda: v.moneda, total_usd: convertirAMoneda(v.total_moneda, 'USD') }))}

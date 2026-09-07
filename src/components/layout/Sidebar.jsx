@@ -7,10 +7,10 @@ const enlaces = [
   { to: '/ventas', icono: FiShoppingCart, titulo: 'Ventas', roles: ['admin', 'cajero'] },
   { to: '/catalogo', icono: FiBookOpen, titulo: 'Catálogo', roles: ['admin', 'cajero'] },
   { to: '/productos', icono: FiBox, titulo: 'Productos', roles: ['admin'] },
-  { to: '/reportes', icono: FiPieChart, titulo: 'Reportes', roles: ['admin'] },
-  { to: '/usuarios', icono: FiUsers, titulo: 'Usuarios', roles: ['admin'] },
-  { to: '/metodos-pago', icono: FiCreditCard, titulo: 'Métodos de pago', roles: ['admin'] },
   { to: '/tasas', icono: FiTrendingUp, titulo: 'Tasas', roles: ['admin'] },
+  { to: '/reportes', icono: FiPieChart, titulo: 'Reportes', roles: ['admin'] },
+  { to: '/metodos-pago', icono: FiCreditCard, titulo: 'Métodos de pago', roles: ['admin'] },
+  { to: '/usuarios', icono: FiUsers, titulo: 'Usuarios', roles: ['admin'] }
 ];
 
 function Sidebar() {
@@ -18,6 +18,7 @@ function Sidebar() {
 
   return (
     <aside
+      className="sidebar-cerveloza"
       style={{
         width: '64px',
         backgroundColor: 'var(--grafito)',

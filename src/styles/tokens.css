@@ -68,3 +68,71 @@ input[type='number'] {
   min-height: 40px;
   font-size: 15px;
 }
+
+/* ===== RESPONSIVE MÓVIL ===== */
+
+/* Sidebar: de riel lateral a barra inferior tipo app móvil */
+@media (max-width: 768px) {
+  .sidebar-cerveloza {
+    position: fixed;
+    bottom: 0;
+    top: auto;
+    left: 0;
+    width: 100%;
+    height: 56px;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    padding-top: 0;
+    gap: 0;
+    border-top: var(--borde-fino);
+    z-index: 50;
+  }
+
+  .sidebar-cerveloza a {
+    border-left: none !important;
+    border-top: 3px solid transparent;
+  }
+
+  .sidebar-cerveloza a[aria-current='page'],
+  .sidebar-cerveloza a.activo {
+    border-top-color: var(--rojo-cerveloza) !important;
+  }
+
+  .layout-contenido {
+    padding-bottom: 72px !important;
+  }
+
+  .layout-main {
+    padding: var(--espacio-md) !important;
+  }
+
+  /* Grids de 2 columnas pasan a 1 sola columna */
+  .grid-2col {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Grids de tarjetas KPI: 2 por fila en vez de 4-5 */
+  .grid-kpi {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Encabezados grandes se reducen un poco */
+  h1.texto-display {
+    font-size: 18px !important;
+  }
+
+  /* Tablas: scroll horizontal en vez de romper el layout */
+  .tabla-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabla-scroll table {
+    min-width: 560px;
+  }
+
+  /* Navbar más compacto */
+  .navbar-cerveloza {
+    padding: 0 var(--espacio-md) !important;
+  }
+}
