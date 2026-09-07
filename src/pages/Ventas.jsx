@@ -24,8 +24,9 @@ function Ventas() {
     const [paginaVentas, setPaginaVentas] = useState(1);
     const VENTAS_POR_PAGINA = 5;
   useEffect(() => {
-    cargarDatosIniciales();
-  }, []);
+  cargarDatosIniciales();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   async function cargarDatosIniciales() {
     setCargandoInicial(true);

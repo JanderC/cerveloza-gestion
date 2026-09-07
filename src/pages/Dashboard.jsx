@@ -9,9 +9,10 @@ function Dashboard() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    cargarDatos();
-  }, [usuario]);
+useEffect(() => {
+  cargarDatos();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [usuario]);
 
   async function cargarDatos() {
     setCargando(true);
