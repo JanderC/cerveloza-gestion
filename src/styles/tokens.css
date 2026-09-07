@@ -1,0 +1,70 @@
+:root {
+  /* Colores */
+  --grafito: #1A1A1A;
+  --gris-concreto: #8B877F;
+  --gris-humo: #E8E6E1;
+  --rojo-cerveloza: #B4241C;
+  --rojo-oscuro: #7A1812;
+  --blanco-hueso: #F7F6F3;
+
+  /* Tipografía */
+  --fuente-display: 'Archivo Black', sans-serif;
+  --fuente-base: 'IBM Plex Sans', sans-serif;
+
+  /* Espaciado (escala consistente, base 8px) */
+  --espacio-xs: 4px;
+  --espacio-sm: 8px;
+  --espacio-md: 16px;
+  --espacio-lg: 24px;
+  --espacio-xl: 40px;
+
+  /* Bordes */
+  --borde-fino: 1px solid var(--gris-concreto);
+  --borde-activo: 3px solid var(--rojo-cerveloza);
+}
+
+body {
+  background-color: var(--gris-humo);
+  color: var(--grafito);
+  font-family: var(--fuente-base);
+  font-feature-settings: "tnum" 1; /* números tabulares por defecto en toda la app */
+  margin: 0;
+}
+
+h1, h2, h3, .texto-display {
+  font-family: var(--fuente-display);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.cifra-dinero {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Utilidades de línea fina en vez de bordes redondeados/sombras */
+.divisor {
+  border: none;
+  border-top: var(--borde-fino);
+  margin: var(--espacio-md) 0;
+}
+
+.superficie {
+  background-color: var(--blanco-hueso);
+  border: var(--borde-fino);
+  border-radius: 2px; /* casi nulo, a propósito */
+}
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* Inputs más cómodos para pantallas táctiles */
+.input-tactil {
+  min-height: 40px;
+  font-size: 15px;
+}

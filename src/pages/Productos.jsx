@@ -1,0 +1,559 @@
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
+import api from '../api/axios';
+
+const MONEDAS = ['USD', 'COP', 'VES'];
+const POR_PAGINA = 8;
+
+function Productos() {
+  const [productos, setProductos] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [productoEditando, setProductoEditando] = useState(null);
+  const [busqueda, setBusqueda] = useState('');
+  const [filtroCategoria, setFiltroCategoria] = useState('');
+  const [pagina, setPagina] = useState(1);
+
+  useEffect(() => {
+    cargarProductos();
+    cargarCategorias();
+  }, []);
+
+  async function cargarProductos() {
+    setCargando(true);
+    try {
+      const respuesta = await api.get('/productos');
+      setProductos(respuesta.data);
+    } catch (error) {
+      toast.error('No se pudieron cargar los productos');
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  async function cargarCategorias() {
+    try {
+      const respuesta = await api.get('/productos/categorias');
+      setCategorias(respuesta.data);
+    } catch (error) {
+      // silencioso: si falla, simplemente no se muestra el filtro de categorías
+    }
+  }
+
+  function abrirNuevo() {
+    setProductoEditando(null);
+    setMostrarFormulario(true);
+  }
+
+  function abrirEditar(producto) {
+    setProductoEditando(producto);
+    setMostrarFormulario(true);
+  }
+
+  async function manejarDesactivar(id) {
+    if (!window.confirm('¿Desactivar este producto? Dejará de aparecer en ventas.')) return;
+    try {
+      await api.patch(`/productos/${id}/desactivar`);
+      toast.success('Producto desactivado');
+      cargarProductos();
+    } catch (error) {
+      toast.error('No se pudo desactivar el producto');
+    }
+  }
+
+  const productosFiltrados = useMemo(() => {
+    return productos.filter((p) => {
+      const coincideBusqueda =
+        !busqueda.trim() ||
+        p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+        p.codigo.toLowerCase().includes(busqueda.toLowerCase());
+      const coincideCategoria = !filtroCategoria || p.categoria === filtroCategoria;
+      return coincideBusqueda && coincideCategoria;
+    });
+  }, [productos, busqueda, filtroCategoria]);
+
+  const totalPaginas = Math.max(1, Math.ceil(productosFiltrados.length / POR_PAGINA));
+  const productosPagina = productosFiltrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+
+  return (
+    <div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 'var(--espacio-lg)'
+        }}
+      >
+        <h1 className="texto-display" style={{ fontSize: '22px' }}>Productos</h1>
+        <button onClick={abrirNuevo} style={estiloBotonPrimario}>
+          + Nuevo producto
+        </button>
+      </div>
+
+      {/* Filtros */}
+      <div style={{ display: 'flex', gap: 'var(--espacio-sm)', marginBottom: 'var(--espacio-lg)', flexWrap: 'wrap' }}>
+        <input
+          placeholder="Buscar por nombre o código..."
+          value={busqueda}
+          onChange={(e) => {
+            setBusqueda(e.target.value);
+            setPagina(1);
+          }}
+          style={{ ...estiloInput, flex: '1 1 240px' }}
+        />
+        {categorias.length > 0 && (
+          <select
+            value={filtroCategoria}
+            onChange={(e) => {
+              setFiltroCategoria(e.target.value);
+              setPagina(1);
+            }}
+            style={{ ...estiloInput, flex: '0 0 200px' }}
+          >
+            <option value="">Todas las categorías</option>
+            {categorias.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {cargando && <p style={{ color: 'var(--gris-concreto)' }}>Cargando...</p>}
+
+      {!cargando && productosPagina.length === 0 && (
+        <p style={{ color: 'var(--gris-concreto)' }}>No se encontraron productos con esos filtros.</p>
+      )}
+
+      {!cargando && productosPagina.length > 0 && (
+        <>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+                <th style={{ ...estiloTh, width: '48px' }}></th>
+                <th style={{estiloTh}}>Código</th>
+                <th style={{estiloTh}}>Categoría</th>
+                <th style={{estiloTh}}>Nombre</th>
+                <th style={{estiloTh, textAlign: 'right' }}>Precio venta</th>
+                <th style={{estiloTh}}>Moneda</th>
+                <th style={{estiloTh, textAlign: 'right' }}>% Ganancia</th>
+                <th style={{estiloTh, textAlign: 'right' }}>Stock</th>
+                <th style={estiloTh}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {productosPagina.map((producto) => (
+                <tr key={producto.id} style={{ borderBottom: 'var(--borde-fino)' }}>
+                  <td style={{ ...estiloTd, padding: '6px' }}>
+                    <div
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        backgroundColor: 'var(--gris-humo)',
+                        overflow: 'hidden',
+                        flexShrink: 0
+                      }}
+                    >
+                      {producto.imagen_url && (
+                        <img
+                          src={producto.imagen_url}
+                          alt=""
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      )}
+                    </div>
+                  </td>
+                  <td style={estiloTd}>{producto.codigo}</td>
+                  <td style={estiloTd}>{producto.categoria || '—'}</td>
+                  <td style={estiloTd}>{producto.nombre}</td>
+                  <td className="cifra-dinero" style={estiloTd}>
+                    {Number(producto.precio_venta).toFixed(2)}
+                  </td>
+                  <td style={estiloTd}>{producto.moneda_base}</td>
+                  <td className="cifra-dinero" style={estiloTd}>
+                    {producto.porcentaje_ganancia != null ? `${Number(producto.porcentaje_ganancia).toFixed(1)}%` : '—'}
+                  </td>
+                  <td
+                    className="cifra-dinero"
+                    style={{
+                      ...estiloTd,
+                      color: producto.stock <= 5 ? 'var(--rojo-cerveloza)' : 'var(--grafito)'
+                    }}
+                  >
+                    {producto.stock}
+                  </td>
+                  <td style={{ ...estiloTd, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <button onClick={() => abrirEditar(producto)} style={estiloBotonTexto}>
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => manejarDesactivar(producto.id)}
+                      style={{ ...estiloBotonTexto, color: 'var(--rojo-cerveloza)' }}
+                    >
+                      Desactivar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {totalPaginas > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 'var(--espacio-md)', marginTop: 'var(--espacio-md)' }}>
+              <button
+                onClick={() => setPagina((p) => Math.max(1, p - 1))}
+                disabled={pagina === 1}
+                style={{ ...estiloBotonSecundario, opacity: pagina === 1 ? 0.4 : 1 }}
+              >
+                Anterior
+              </button>
+              <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
+                Página {pagina} de {totalPaginas}
+              </span>
+              <button
+                onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+                disabled={pagina === totalPaginas}
+                style={{ ...estiloBotonSecundario, opacity: pagina === totalPaginas ? 0.4 : 1 }}
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {mostrarFormulario && (
+        <FormularioProducto
+          producto={productoEditando}
+          onCerrar={() => setMostrarFormulario(false)}
+          onGuardado={() => {
+            setMostrarFormulario(false);
+            cargarProductos();
+            cargarCategorias();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function FormularioProducto({ producto, onCerrar, onGuardado }) {
+  const [form, setForm] = useState({
+    codigo: producto?.codigo || '',
+    nombre: producto?.nombre || '',
+    descripcion: producto?.descripcion || '',
+    precio_compra: producto?.precio_compra || '',
+    precio_venta: producto?.precio_venta || '',
+    porcentaje_ganancia: producto?.porcentaje_ganancia || '',
+    moneda_base: producto?.moneda_base || 'USD',
+    categoria: producto?.categoria || '',
+    stock: producto?.stock || 0,
+    imagen_url: producto?.imagen_url || ''
+  });
+  const [modoPrecio, setModoPrecio] = useState(producto?.porcentaje_ganancia ? 'porcentaje' : 'manual');
+  const [imagenArchivo, setImagenArchivo] = useState(null);
+  const [previewImagen, setPreviewImagen] = useState(producto?.imagen_url || '');
+  const [guardando, setGuardando] = useState(false);
+
+  function actualizarCampo(campo, valor) {
+    setForm((prev) => ({ ...prev, [campo]: valor }));
+  }
+
+  function manejarSeleccionImagen(e) {
+    const archivo = e.target.files[0];
+    setImagenArchivo(archivo);
+    if (archivo) setPreviewImagen(URL.createObjectURL(archivo));
+  }
+
+  const precioVentaCalculado =
+    modoPrecio === 'porcentaje' && form.precio_compra && form.porcentaje_ganancia
+      ? Number(form.precio_compra) + (Number(form.precio_compra) * Number(form.porcentaje_ganancia)) / 100
+      : null;
+
+  const porcentajeCalculado =
+    modoPrecio === 'manual' && form.precio_compra && form.precio_venta
+      ? ((Number(form.precio_venta) - Number(form.precio_compra)) / Number(form.precio_compra)) * 100
+      : null;
+
+  async function manejarSubmit(e) {
+    e.preventDefault();
+    setGuardando(true);
+
+    try {
+      let imagenUrlFinal = form.imagen_url;
+
+      if (imagenArchivo) {
+        const formData = new FormData();
+        formData.append('imagen', imagenArchivo);
+        const respuestaImagen = await api.post('/productos/subir-imagen', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        imagenUrlFinal = respuestaImagen.data.imagen_url;
+      }
+
+      const datosProducto = {
+        ...form,
+        imagen_url: imagenUrlFinal,
+        porcentaje_ganancia: modoPrecio === 'porcentaje' ? form.porcentaje_ganancia : null
+      };
+
+      if (producto) {
+        await api.put(`/productos/${producto.id}`, datosProducto);
+        toast.success('Producto actualizado');
+      } else {
+        await api.post('/productos', datosProducto);
+        toast.success('Producto creado');
+      }
+
+      onGuardado();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Error al guardar producto');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(26, 26, 26, 0.6)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 20,
+        padding: 'var(--espacio-lg)'
+      }}
+    >
+      <form
+        onSubmit={manejarSubmit}
+        style={{
+          width: '100%',
+          maxWidth: '520px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          backgroundColor: 'var(--blanco-hueso)',
+          borderTop: '5px solid var(--rojo-cerveloza)',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.25)'
+        }}
+      >
+        {/* Encabezado del modal */}
+        <div style={{ padding: 'var(--espacio-lg)', borderBottom: 'var(--borde-fino)' }}>
+          <h2 className="texto-display" style={{ fontSize: '20px', margin: 0 }}>
+            {producto ? 'Editar producto' : 'Nuevo producto'}
+          </h2>
+          <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', margin: '4px 0 0' }}>
+            {producto ? `Editando "${producto.nombre}"` : 'Completa los datos para agregarlo al inventario'}
+          </p>
+        </div>
+
+        <div style={{ padding: 'var(--espacio-lg)' }}>
+          {/* Sección: imagen + datos generales */}
+          <SeccionTitulo texto="Datos generales" />
+          <div style={{ display: 'flex', gap: 'var(--espacio-md)', marginBottom: 'var(--espacio-md)' }}>
+            <div>
+              <div
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  backgroundColor: 'var(--gris-humo)',
+                  border: 'var(--borde-fino)',
+                  overflow: 'hidden',
+                  marginBottom: '6px'
+                }}
+              >
+                {previewImagen && (
+                  <img src={previewImagen} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                )}
+              </div>
+              <label style={{ fontSize: '11px', color: 'var(--rojo-cerveloza)', cursor: 'pointer', textDecoration: 'underline' }}>
+                {previewImagen ? 'Cambiar' : 'Subir imagen'}
+                <input type="file" accept="image/*" onChange={manejarSeleccionImagen} style={{ display: 'none' }} />
+              </label>
+            </div>
+
+            <div style={{ flex: 1 }}>
+              <CampoTexto etiqueta="Nombre" valor={form.nombre} onCambiar={(v) => actualizarCampo('nombre', v)} requerido />
+              <div style={{ display: 'flex', gap: 'var(--espacio-sm)' }}>
+                <CampoTexto etiqueta="Código de barras" valor={form.codigo} onCambiar={(v) => actualizarCampo('codigo', v)} />
+                <CampoTexto etiqueta="Categoría" valor={form.categoria} onCambiar={(v) => actualizarCampo('categoria', v)} />
+              </div>
+            </div>
+          </div>
+
+          <CampoTexto etiqueta="Descripción" valor={form.descripcion} onCambiar={(v) => actualizarCampo('descripcion', v)} />
+
+          {/* Sección: precios */}
+          <SeccionTitulo texto="Precios y ganancia" />
+          <CampoTexto etiqueta="Precio de compra" tipo="number" valor={form.precio_compra} onCambiar={(v) => actualizarCampo('precio_compra', v)} requerido />
+
+          <div style={{ display: 'flex', gap: 'var(--espacio-md)', marginBottom: 'var(--espacio-sm)' }}>
+            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+              <input type="radio" checked={modoPrecio === 'porcentaje'} onChange={() => setModoPrecio('porcentaje')} />
+              Por % de ganancia
+            </label>
+            <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+              <input type="radio" checked={modoPrecio === 'manual'} onChange={() => setModoPrecio('manual')} />
+              Precio manual
+            </label>
+          </div>
+
+          {modoPrecio === 'porcentaje' ? (
+            <>
+              <CampoTexto etiqueta="Porcentaje de ganancia (%)" tipo="number" valor={form.porcentaje_ganancia} onCambiar={(v) => actualizarCampo('porcentaje_ganancia', v)} requerido />
+              {precioVentaCalculado !== null && (
+                <div style={estiloCajaCalculo}>
+                  Precio de venta calculado: <strong className="cifra-dinero">{precioVentaCalculado.toFixed(2)}</strong>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <CampoTexto etiqueta="Precio de venta" tipo="number" valor={form.precio_venta} onCambiar={(v) => actualizarCampo('precio_venta', v)} requerido />
+              {porcentajeCalculado !== null && (
+                <div style={estiloCajaCalculo}>
+                  Ganancia resultante: <strong>{porcentajeCalculado.toFixed(2)}%</strong>
+                </div>
+              )}
+            </>
+          )}
+
+          <div style={{ display: 'flex', gap: 'var(--espacio-sm)' }}>
+            <div style={{ flex: 1 }}>
+              <label style={estiloLabel}>Moneda base</label>
+              <select value={form.moneda_base} onChange={(e) => actualizarCampo('moneda_base', e.target.value)} style={estiloInput}>
+                {MONEDAS.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            {!producto && (
+              <div style={{ flex: 1 }}>
+                <CampoTexto etiqueta="Stock inicial" tipo="number" valor={form.stock} onCambiar={(v) => actualizarCampo('stock', v)} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Pie del modal */}
+        <div style={{ display: 'flex', gap: 'var(--espacio-sm)', padding: 'var(--espacio-lg)', borderTop: 'var(--borde-fino)' }}>
+          <button type="button" onClick={onCerrar} style={estiloBotonSecundario}>Cancelar</button>
+          <button type="submit" disabled={guardando} style={{ ...estiloBotonPrimario, flex: 1 }}>
+            {guardando ? 'Guardando...' : 'Guardar producto'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function SeccionTitulo({ texto }) {
+  return (
+    <p
+      style={{
+        fontSize: '11px',
+        fontWeight: 700,
+        color: 'var(--rojo-cerveloza)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        marginBottom: 'var(--espacio-sm)',
+        marginTop: 'var(--espacio-md)'
+      }}
+    >
+      {texto}
+    </p>
+  );
+}
+
+function CampoTexto({ etiqueta, valor, onCambiar, tipo = 'text', requerido = false }) {
+  return (
+    <div style={{ marginBottom: 'var(--espacio-md)', flex: 1 }}>
+      <label style={estiloLabel}>{etiqueta}</label>
+      <input
+        type={tipo}
+        value={valor}
+        onChange={(e) => onCambiar(e.target.value)}
+        required={requerido}
+        step={tipo === 'number' ? '0.01' : undefined}
+        style={estiloInput}
+      />
+    </div>
+  );
+}
+
+const estiloLabel = {
+  display: 'block',
+  fontSize: '13px',
+  color: 'var(--gris-concreto)',
+  marginBottom: 'var(--espacio-xs)'
+};
+
+const estiloInput = {
+  width: '100%',
+  padding: '10px 12px',
+  border: 'var(--borde-fino)',
+  borderRadius: '2px',
+  fontFamily: 'var(--fuente-base)',
+  fontSize: '14px',
+  boxSizing: 'border-box'
+};
+
+const estiloCajaCalculo = {
+  backgroundColor: 'var(--gris-humo)',
+  borderLeft: '3px solid var(--rojo-cerveloza)',
+  padding: '8px 12px',
+  fontSize: '13px',
+  color: 'var(--grafito)',
+  marginBottom: 'var(--espacio-md)'
+};
+
+const estiloTh = {
+  textAlign: 'left',
+  padding: 'var(--espacio-sm)',
+  fontSize: '12px',
+  color: 'var(--gris-concreto)'
+};
+
+const estiloTd = {
+  padding: 'var(--espacio-sm)',
+  fontSize: '14px',
+  verticalAlign: 'middle'
+};
+
+const estiloBotonPrimario = {
+  padding: '10px 16px',
+  backgroundColor: 'var(--rojo-cerveloza)',
+  color: 'var(--blanco-hueso)',
+  border: 'none',
+  borderRadius: '2px',
+  fontFamily: 'var(--fuente-base)',
+  fontWeight: 600,
+  fontSize: '14px',
+  cursor: 'pointer'
+};
+
+const estiloBotonSecundario = {
+  padding: '10px 16px',
+  backgroundColor: 'transparent',
+  color: 'var(--grafito)',
+  border: 'var(--borde-fino)',
+  borderRadius: '2px',
+  fontFamily: 'var(--fuente-base)',
+  fontSize: '14px',
+  cursor: 'pointer'
+};
+
+const estiloBotonTexto = {
+  background: 'none',
+  border: 'none',
+  color: 'var(--grafito)',
+  fontFamily: 'var(--fuente-base)',
+  fontSize: '13px',
+  cursor: 'pointer',
+  marginLeft: 'var(--espacio-sm)',
+  textDecoration: 'underline'
+};
+
+export default Productos;
