@@ -93,14 +93,21 @@ function Ventas() {
   }
 
   function precioUnitarioUSD(producto) {
-    if (producto.moneda_base === 'USD') return Number(producto.precio_venta);
-    if (producto.moneda_base === 'COP') return Number(producto.precio_venta) / Number(tasa.usd_cop);
-    if (producto.moneda_base === 'VES') {
-      const usdVesEfectivo = tasa.ves_cop_manual ? Number(tasa.usd_cop) / Number(tasa.ves_cop) : Number(tasa.usd_ves);
-      return Number(producto.precio_venta) / usdVesEfectivo;
+  // Si hay un precio fijo manual para la moneda de venta actual, se usa tal cual (sin conversión)
+  if (producto.moneda_base !== monedaVenta) {
+    const campoManual = `precio_manual_${monedaVenta.toLowerCase()}`;
+    if (producto[campoManual] != null) {
+      return convertirAUSD(producto[campoManual], monedaVenta);
     }
-    return 0;
   }
+  if (producto.moneda_base === 'USD') return Number(producto.precio_venta);
+  if (producto.moneda_base === 'COP') return Number(producto.precio_venta) / Number(tasa.usd_cop);
+  if (producto.moneda_base === 'VES') {
+    const usdVesEfectivo = tasa.ves_cop_manual ? Number(tasa.usd_cop) / Number(tasa.ves_cop) : Number(tasa.usd_ves);
+    return Number(producto.precio_venta) / usdVesEfectivo;
+  }
+  return 0;
+}
 
   function precioEnMonedaVenta(producto) {
     return convertirDesdeUSD(precioUnitarioUSD(producto), monedaVenta);
@@ -263,18 +270,19 @@ function Ventas() {
     setProcesando(true);
     try {
       const respuesta = await api.post('/ventas', {
-        productos: carrito.map((item) => ({ producto_id: item.producto.id, cantidad: item.cantidad })),
-        pagos: pagos
-          .filter((p) => p.monto && Number(p.monto) > 0)
-          .map((pago) => ({
-            moneda: pago.moneda,
-            metodo_pago_id: Number(pago.metodo_pago_id),
-            monto: Number(pago.monto),
-            referencia: pago.referencia || null
-          })),
-        cliente_id: clienteSeleccionado?.id || null,
-        sesion_caja_id: sesionCajaId
-      });
+  productos: carrito.map((item) => ({ producto_id: item.producto.id, cantidad: item.cantidad })),
+  pagos: pagos
+    .filter((p) => p.monto && Number(p.monto) > 0)
+    .map((pago) => ({
+      moneda: pago.moneda,
+      metodo_pago_id: Number(pago.metodo_pago_id),
+      monto: Number(pago.monto),
+      referencia: pago.referencia || null
+    })),
+  cliente_id: clienteSeleccionado?.id || null,
+  sesion_caja_id: sesionCajaId,
+  moneda_venta: monedaVenta
+});
 
       if (respuesta.data.vuelto_usd > 0.05) {
         toast.success(`Venta registrada. Vuelto: ${convertirDesdeUSD(respuesta.data.vuelto_usd, monedaVenta).toFixed(2)} ${monedaVenta}`);

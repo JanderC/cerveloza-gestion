@@ -170,7 +170,25 @@ function Productos() {
                     </td>
                     <td style={estiloTd}>{producto.codigo}</td>
                     <td style={estiloTd}>{producto.categoria || '—'}</td>
-                    <td style={estiloTd}>{producto.nombre}</td>
+                    <td style={estiloTd}>
+                      {producto.nombre}
+                      {(producto.precio_manual_usd || producto.precio_manual_cop || producto.precio_manual_ves) && (
+                        <span
+                          title="Tiene precios fijos configurados en otras monedas"
+                          style={{
+                            display: 'inline-block',
+                            marginLeft: '6px',
+                            fontSize: '10px',
+                            color: 'var(--rojo-cerveloza)',
+                            border: '1px solid var(--rojo-cerveloza)',
+                            borderRadius: '2px',
+                            padding: '0 4px'
+                          }}
+                        >
+                          precios fijos
+                        </span>
+                      )}
+                    </td>
                     <td className="cifra-dinero" style={{ ...estiloTd, color: 'var(--gris-concreto)' }}>
                       {Number(producto.precio_compra).toFixed(2)}
                     </td>
@@ -260,7 +278,6 @@ function Productos() {
   );
 }
 
-// Modal simple para registrar entrada de mercancía (llegada de más productos)
 function ModalAgregarStock({ producto, onCerrar, onGuardado }) {
   const [cantidad, setCantidad] = useState('');
   const [guardando, setGuardando] = useState(false);
@@ -350,7 +367,10 @@ function FormularioProducto({ producto, onCerrar, onGuardado }) {
     moneda_base: producto?.moneda_base || 'USD',
     categoria: producto?.categoria || '',
     stock: producto?.stock || 0,
-    imagen_url: producto?.imagen_url || ''
+    imagen_url: producto?.imagen_url || '',
+    precio_manual_usd: producto?.precio_manual_usd || '',
+    precio_manual_cop: producto?.precio_manual_cop || '',
+    precio_manual_ves: producto?.precio_manual_ves || ''
   });
   const [modoPrecio, setModoPrecio] = useState(producto?.porcentaje_ganancia ? 'porcentaje' : 'manual');
   const [imagenArchivo, setImagenArchivo] = useState(null);
@@ -396,7 +416,10 @@ function FormularioProducto({ producto, onCerrar, onGuardado }) {
       const datosProducto = {
         ...form,
         imagen_url: imagenUrlFinal,
-        porcentaje_ganancia: modoPrecio === 'porcentaje' ? form.porcentaje_ganancia : null
+        porcentaje_ganancia: modoPrecio === 'porcentaje' ? form.porcentaje_ganancia : null,
+        precio_manual_usd: form.precio_manual_usd === '' ? null : form.precio_manual_usd,
+        precio_manual_cop: form.precio_manual_cop === '' ? null : form.precio_manual_cop,
+        precio_manual_ves: form.precio_manual_ves === '' ? null : form.precio_manual_ves
       };
 
       if (producto) {
@@ -535,10 +558,27 @@ function FormularioProducto({ producto, onCerrar, onGuardado }) {
           </div>
 
           {producto && (
-            <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', marginTop: '4px' }}>
-              Para agregar stock nuevo usa el botón "+ Stock" en la tabla, no este formulario — así mantenemos el historial de entradas separado de las correcciones de datos.
+            <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', marginTop: '4px', marginBottom: 'var(--espacio-md)' }}>
+              Para agregar stock nuevo usa el botón "+ Stock" en la tabla, no este formulario.
             </p>
           )}
+
+          <SeccionTitulo texto="Precios fijos por moneda (opcional)" />
+          <p style={{ fontSize: '13px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-sm)' }}>
+            Si dejas esto vacío, el precio se calcula automático con la tasa del día. Si escribes un número,
+            se venderá siempre en ese monto exacto en esa moneda, sin importar la tasa.
+          </p>
+          {['usd', 'cop', 'ves']
+            .filter((m) => m.toUpperCase() !== form.moneda_base)
+            .map((m) => (
+              <CampoTexto
+                key={m}
+                etiqueta={`Precio fijo en ${m.toUpperCase()}`}
+                tipo="number"
+                valor={form[`precio_manual_${m}`]}
+                onCambiar={(v) => actualizarCampo(`precio_manual_${m}`, v)}
+              />
+            ))}
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--espacio-sm)', padding: 'var(--espacio-lg)', borderTop: 'var(--borde-fino)' }}>
