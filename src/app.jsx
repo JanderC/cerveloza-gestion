@@ -13,6 +13,7 @@ import Reportes from "./pages/Reportes";
 import Usuarios from "./pages/Usuarios";
 import Tasas from "./pages/Tasas";
 import MetodosPago from "./pages/MetodosPago";
+import Caja from './pages/Caja';
 
 function RutaProtegida({ children, rolesPermitidos }) {
   const { usuario } = useAuth();
@@ -87,6 +88,14 @@ function AppRoutes() {
             </RutaProtegida>
           }
         />
+        <Route
+            path="caja"
+            element={
+                <RutaProtegida rolesPermitidos={['admin', 'cajero']}>
+                <Caja />
+                </RutaProtegida>
+            }
+            />
       </Route>
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

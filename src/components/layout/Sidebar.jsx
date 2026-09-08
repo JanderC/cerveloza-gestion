@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { FiGrid, FiShoppingCart, FiBox, FiBookOpen, FiPieChart, FiUsers, FiTrendingUp, FiCreditCard } from 'react-icons/fi';
+import { FiGrid, FiShoppingCart, FiBox, FiBookOpen, FiPieChart, FiUsers, FiTrendingUp, FiCreditCard, FiDollarSign } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 
 const enlaces = [
   { to: '/dashboard', icono: FiGrid, titulo: 'Dashboard', roles: ['admin', 'cajero'] },
+  { to: '/caja', icono: FiDollarSign, titulo: 'Caja', roles: ['admin', 'cajero'] },
   { to: '/ventas', icono: FiShoppingCart, titulo: 'Ventas', roles: ['admin', 'cajero'] },
   { to: '/catalogo', icono: FiBookOpen, titulo: 'Catálogo', roles: ['admin', 'cajero'] },
   { to: '/productos', icono: FiBox, titulo: 'Productos', roles: ['admin'] },
