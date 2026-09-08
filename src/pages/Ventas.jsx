@@ -281,7 +281,8 @@ function Ventas() {
     })),
   cliente_id: clienteSeleccionado?.id || null,
   sesion_caja_id: sesionCajaId,
-  moneda_venta: monedaVenta
+  moneda_venta: monedaVenta,
+  moneda_vuelto: monedaVuelto
 });
 
       if (respuesta.data.vuelto_usd > 0.05) {
@@ -929,12 +930,28 @@ function Ventas() {
             onClick={(e) => e.stopPropagation()}
             style={{ width: '100%', maxWidth: '420px', padding: 'var(--espacio-lg)', maxHeight: '80vh', overflowY: 'auto' }}
           >
-            <h2 className="texto-display" style={{ fontSize: '16px', marginBottom: 'var(--espacio-xs)' }}>
-              {ventaSeleccionada.venta.numero_venta}
-            </h2>
-            <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-md)' }}>
-              Total: ${Number(ventaSeleccionada.venta.total_usd).toFixed(2)} USD
-            </p>
+            <h2 className="texto-display" style={{ fontSize: '16px', marginBottom: '4px' }}>
+  {ventaSeleccionada.venta.numero_venta}
+</h2>
+
+{ventaSeleccionada.venta.estado === 'fiado' && (
+  <div style={{ backgroundColor: 'var(--rojo-cerveloza)', color: 'var(--blanco-hueso)', padding: '4px 10px', fontSize: '12px', fontWeight: 700, display: 'inline-block', marginBottom: 'var(--espacio-sm)' }}>
+    FIADO — PENDIENTE DE PAGO
+  </div>
+)}
+
+{ventaSeleccionada.cliente && (
+  <p style={{ fontSize: '13px', color: 'var(--grafito)', marginBottom: '4px' }}>
+    Cliente: <strong>{ventaSeleccionada.cliente.nombre}</strong>
+    {ventaSeleccionada.fiado && (
+      <span style={{ color: 'var(--rojo-cerveloza)' }}> · Saldo pendiente: ${Number(ventaSeleccionada.fiado.saldo_pendiente_usd).toFixed(2)} USD</span>
+    )}
+  </p>
+)}
+
+<p style={{ fontSize: '12px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-md)' }}>
+  Total: ${Number(ventaSeleccionada.venta.total_usd).toFixed(2)} USD
+</p>
 
             <p style={{ fontSize: '12px', fontWeight: 600, marginBottom: 'var(--espacio-xs)' }}>Productos</p>
             {ventaSeleccionada.detalles.map((d) => (
@@ -947,6 +964,11 @@ function Ventas() {
             <p style={{ fontSize: '12px', fontWeight: 600, margin: 'var(--espacio-md) 0 var(--espacio-xs)' }}>
               Desglose de pago
             </p>
+            {ventaSeleccionada.venta.vuelto_monto > 0 && (
+  <p style={{ fontSize: '13px', color: 'var(--gris-concreto)', marginTop: 'var(--espacio-sm)', borderTop: 'var(--borde-fino)', paddingTop: 'var(--espacio-sm)' }}>
+    Vuelto entregado: <strong>{Number(ventaSeleccionada.venta.vuelto_monto).toFixed(2)} {ventaSeleccionada.venta.vuelto_moneda}</strong>
+  </p>
+)}
             {ventaSeleccionada.pagos.map((p) => (
               <div key={p.id} style={{ borderTop: 'var(--borde-fino)', padding: '6px 0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
