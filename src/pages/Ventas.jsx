@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { FiTrash2, FiSearch } from 'react-icons/fi';
+import { FiTrash2, FiSearch, FiUserPlus } from 'react-icons/fi';
 import api from '../api/axios';
 
 const MONEDAS = ['USD', 'COP', 'VES'];
@@ -24,6 +24,14 @@ function Ventas() {
   const [paginaVentas, setPaginaVentas] = useState(1);
   const VENTAS_POR_PAGINA = 5;
 
+  // Fiado
+  const [sesionCajaId, setSesionCajaId] = useState(null);
+  const [mostrarFiado, setMostrarFiado] = useState(false);
+  const [busquedaCliente, setBusquedaCliente] = useState('');
+  const [resultadosClientes, setResultadosClientes] = useState([]);
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+  const [creandoCliente, setCreandoCliente] = useState(false);
+
   useEffect(() => {
     cargarDatosIniciales();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -32,16 +40,18 @@ function Ventas() {
   async function cargarDatosIniciales() {
     setCargandoInicial(true);
     try {
-      const [respProductos, respTasa, respVentas, respMetodos] = await Promise.all([
+      const [respProductos, respTasa, respVentas, respMetodos, respCaja] = await Promise.all([
         api.get('/productos'),
         api.get('/tasas/actual'),
         api.get('/ventas'),
-        api.get('/metodos-pago')
+        api.get('/metodos-pago'),
+        api.get('/caja/abierta').catch(() => ({ data: null }))
       ]);
       setProductos(respProductos.data);
       setTasa(respTasa.data);
       setVentasHoy(filtrarVentasDeHoy(respVentas.data));
       setMetodosPago(respMetodos.data);
+      setSesionCajaId(respCaja.data?.id || null);
 
       setPagos((prev) =>
         prev.length > 0
@@ -143,6 +153,7 @@ function Ventas() {
   const montoExcedenteUSD = totalPagadoUSD - totalUSD;
   const hayVuelto = montoExcedenteUSD > 0.05;
   const vueltoEnMonedaSeleccionada = convertirDesdeUSD(montoExcedenteUSD, monedaVuelto);
+  const hayFaltante = faltanteUSD > 0.05;
 
   function calcularRestanteUSD(excluirIndex) {
     const pagadoOtrasLineas = pagos.reduce((acumulado, pago, i) => {
@@ -203,13 +214,49 @@ function Ventas() {
     }
   }
 
+  // ===== Fiado =====
+  async function buscarClientesEnVivo(texto) {
+    setBusquedaCliente(texto);
+    if (!texto.trim()) {
+      setResultadosClientes([]);
+      return;
+    }
+    try {
+      const respuesta = await api.get('/clientes/buscar', { params: { q: texto } });
+      setResultadosClientes(respuesta.data);
+    } catch (error) {
+      // silencioso
+    }
+  }
+
+  function elegirCliente(cliente) {
+    setClienteSeleccionado(cliente);
+    setMostrarFiado(false);
+    setBusquedaCliente('');
+    setResultadosClientes([]);
+  }
+
+  async function crearYElegirCliente() {
+    if (!busquedaCliente.trim()) return;
+    setCreandoCliente(true);
+    try {
+      const respuesta = await api.post('/clientes', { nombre: busquedaCliente.trim() });
+      elegirCliente(respuesta.data);
+      toast.success('Cliente creado');
+    } catch (error) {
+      toast.error('No se pudo crear el cliente');
+    } finally {
+      setCreandoCliente(false);
+    }
+  }
+
   async function registrarVenta() {
     if (carrito.length === 0) {
       toast.error('Agrega al menos un producto');
       return;
     }
-    if (faltanteUSD > 0.05) {
-      toast.error(`Falta pagar ${convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} ${monedaVenta}`);
+    if (hayFaltante && !clienteSeleccionado) {
+      toast.error('Falta dinero por cobrar — asigna un cliente para fiar el saldo, o completa el pago');
       return;
     }
 
@@ -217,16 +264,22 @@ function Ventas() {
     try {
       const respuesta = await api.post('/ventas', {
         productos: carrito.map((item) => ({ producto_id: item.producto.id, cantidad: item.cantidad })),
-        pagos: pagos.map((pago) => ({
-          moneda: pago.moneda,
-          metodo_pago_id: Number(pago.metodo_pago_id),
-          monto: Number(pago.monto),
-          referencia: pago.referencia || null
-        }))
+        pagos: pagos
+          .filter((p) => p.monto && Number(p.monto) > 0)
+          .map((pago) => ({
+            moneda: pago.moneda,
+            metodo_pago_id: Number(pago.metodo_pago_id),
+            monto: Number(pago.monto),
+            referencia: pago.referencia || null
+          })),
+        cliente_id: clienteSeleccionado?.id || null,
+        sesion_caja_id: sesionCajaId
       });
 
       if (respuesta.data.vuelto_usd > 0.05) {
         toast.success(`Venta registrada. Vuelto: ${convertirDesdeUSD(respuesta.data.vuelto_usd, monedaVenta).toFixed(2)} ${monedaVenta}`);
+      } else if (clienteSeleccionado) {
+        toast.success(`Venta registrada. Se fiaron ${convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} ${monedaVenta} a ${clienteSeleccionado.nombre}`);
       } else {
         toast.success('Venta registrada correctamente');
       }
@@ -234,6 +287,7 @@ function Ventas() {
       setCarrito([]);
       setPagos([{ moneda: monedaVenta, metodo_pago_id: metodosPago[0]?.id || '', monto: '', referencia: '', autoCalculado: true }]);
       setMostrarVueltos(false);
+      setClienteSeleccionado(null);
       cargarDatosIniciales();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error al registrar la venta');
@@ -447,20 +501,40 @@ function Ventas() {
             </div>
           )}
 
+          {/* Total + referencia rápida multimoneda: se ve siempre, sin tener que cambiar el selector */}
           <div
             style={{
               borderTop: '3px solid var(--grafito)',
               marginTop: 'var(--espacio-lg)',
-              paddingTop: 'var(--espacio-md)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'baseline'
+              paddingTop: 'var(--espacio-md)'
             }}
           >
-            <span style={{ fontSize: '14px', color: 'var(--gris-concreto)' }}>Total ({monedaVenta})</span>
-            <span className="texto-display cifra-dinero" style={{ fontSize: '28px' }}>
-              {totalEnMonedaVenta.toFixed(2)}
-            </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--espacio-sm)' }}>
+              <span style={{ fontSize: '14px', color: 'var(--gris-concreto)' }}>Total ({monedaVenta})</span>
+              <span className="texto-display cifra-dinero" style={{ fontSize: '28px' }}>
+                {totalEnMonedaVenta.toFixed(2)}
+              </span>
+            </div>
+
+            {carrito.length > 0 && tasa && (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 'var(--espacio-md)',
+                  flexWrap: 'wrap',
+                  backgroundColor: 'var(--gris-humo)',
+                  padding: 'var(--espacio-sm) var(--espacio-md)'
+                }}
+              >
+                {MONEDAS.filter((m) => m !== monedaVenta).map((m) => (
+                  <span key={m} style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
+                    ≈ <span className="cifra-dinero" style={{ color: 'var(--grafito)', fontWeight: 600 }}>
+                      {convertirDesdeUSD(totalUSD, m).toFixed(2)}
+                    </span> {m}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <div style={{ marginTop: 'var(--espacio-xl)' }}>
@@ -592,7 +666,7 @@ function Ventas() {
                     onChange={(e) => actualizarPago(index, 'metodo_pago_id', e.target.value)}
                     style={{ ...estiloInput, flex: 1 }}
                   >
-                    {metodosPago.map((m) => (
+                    {metodosPago.filter((m) => !m.es_credito).map((m) => (
                       <option key={m.id} value={m.id}>{m.nombre}</option>
                     ))}
                   </select>
@@ -666,7 +740,7 @@ function Ventas() {
               )}
             </div>
 
-            {faltanteUSD > 0.05 && (
+            {hayFaltante && !clienteSeleccionado && (
               <div
                 style={{
                   display: 'flex',
@@ -683,7 +757,85 @@ function Ventas() {
                 </span>
               </div>
             )}
+
+            {clienteSeleccionado && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderTop: '2px solid var(--rojo-cerveloza)',
+                  marginTop: 'var(--espacio-sm)',
+                  paddingTop: 'var(--espacio-sm)'
+                }}
+              >
+                <span style={{ fontSize: '13px', color: 'var(--grafito)' }}>
+                  Fiando <strong>{convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} {monedaVenta}</strong> a:
+                  <br />
+                  <span className="texto-display" style={{ fontSize: '15px', color: 'var(--rojo-cerveloza)' }}>{clienteSeleccionado.nombre}</span>
+                </span>
+                <button onClick={() => setClienteSeleccionado(null)} style={estiloBotonIcono}>
+                  <FiTrash2 size={16} />
+                </button>
+              </div>
+            )}
           </div>
+
+          {/* Botón/panel de fiado — solo aparece cuando realmente falta dinero */}
+          {hayFaltante && !clienteSeleccionado && (
+            <div style={{ marginBottom: 'var(--espacio-md)' }}>
+              {!mostrarFiado ? (
+                <button onClick={() => setMostrarFiado(true)} style={{ ...estiloBotonSecundario, width: '100%', borderColor: 'var(--rojo-cerveloza)', color: 'var(--rojo-cerveloza)' }}>
+                  <FiUserPlus size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                  Fiar este saldo a un cliente
+                </button>
+              ) : (
+                <div className="superficie" style={{ padding: 'var(--espacio-md)', position: 'relative' }}>
+                  <input
+                    placeholder="Buscar cliente por nombre..."
+                    value={busquedaCliente}
+                    onChange={(e) => buscarClientesEnVivo(e.target.value)}
+                    autoFocus
+                    style={{ ...estiloInput, width: '100%', marginBottom: 'var(--espacio-sm)' }}
+                  />
+
+                  {resultadosClientes.map((cliente) => (
+                    <button
+                      key={cliente.id}
+                      onClick={() => elegirCliente(cliente)}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '8px',
+                        border: 'none',
+                        borderBottom: 'var(--borde-fino)',
+                        background: 'none',
+                        cursor: 'pointer',
+                        fontSize: '14px'
+                      }}
+                    >
+                      {cliente.nombre} {cliente.telefono && <span style={{ color: 'var(--gris-concreto)', fontSize: '12px' }}>· {cliente.telefono}</span>}
+                    </button>
+                  ))}
+
+                  {busquedaCliente.trim() && resultadosClientes.length === 0 && (
+                    <button
+                      onClick={crearYElegirCliente}
+                      disabled={creandoCliente}
+                      style={{ ...estiloBotonTexto, display: 'block', marginBottom: 'var(--espacio-sm)' }}
+                    >
+                      {creandoCliente ? 'Creando...' : `+ Crear cliente "${busquedaCliente.trim()}"`}
+                    </button>
+                  )}
+
+                  <button onClick={() => setMostrarFiado(false)} style={{ ...estiloBotonSecundario, width: '100%', marginTop: 'var(--espacio-sm)' }}>
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             onClick={() => setMostrarVueltos(!mostrarVueltos)}
@@ -746,7 +898,7 @@ function Ventas() {
             disabled={procesando}
             style={{ ...estiloBotonPrimario, width: '100%', justifyContent: 'center' }}
           >
-            {procesando ? 'Procesando...' : 'Registrar venta'}
+            {procesando ? 'Procesando...' : clienteSeleccionado ? 'Registrar venta y fiar saldo' : 'Registrar venta'}
           </button>
         </div>
       </div>
