@@ -88,38 +88,41 @@ function Clientes() {
       {!cargando && clientesConDeuda.length > 0 && (
         <div className="tabla-scroll">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
-                <th style={estiloTh}>Cliente</th>
-                <th style={estiloTh}>Teléfono</th>
-                <th style={{ ...estiloTh, textAlign: 'right' }}>Saldo (USD)</th>
-                <th style={{ ...estiloTh, textAlign: 'right' }}>≈ COP</th>
-                <th style={{ ...estiloTh, textAlign: 'right' }}>≈ VES</th>
-                <th style={estiloTh}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {clientesConDeuda.map((c) => (
-                <tr key={c.id} style={{ borderBottom: 'var(--borde-fino)' }}>
-                  <td style={estiloTd}>{c.nombre}</td>
-                  <td style={estiloTd}>{c.telefono || '—'}</td>
-                  <td className="cifra-dinero" style={{ ...estiloTd, color: 'var(--rojo-cerveloza)', fontWeight: 600 }}>
-                    {Number(c.saldo_usd).toFixed(2)}
-                  </td>
-                  <td className="cifra-dinero" style={estiloTd}>
-                    {convertirDesdeUSD(Number(c.saldo_usd), 'COP').toFixed(2)}
-                  </td>
-                  <td className="cifra-dinero" style={estiloTd}>
-                    {convertirDesdeUSD(Number(c.saldo_usd), 'VES').toFixed(2)}
-                  </td>
-                  <td style={{ ...estiloTd, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                    <button onClick={() => setClienteDetalle(c)} style={estiloBotonTexto}>Ver cuenta</button>
-                    <button onClick={() => setClienteAbono(c)} style={{ ...estiloBotonTexto, color: 'var(--rojo-cerveloza)' }}>Abonar</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+  <thead>
+    <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+      <th style={estiloTh}>Cliente</th>
+      <th style={estiloTh}>Teléfono</th>
+      <th style={{ ...estiloTh, textAlign: 'right' }}>Saldo</th>
+      <th style={estiloTh}></th>
+    </tr>
+  </thead>
+  <tbody>
+    {clientesConDeuda.map((c) => {
+      const monedaMostrar = c.moneda_reciente || 'USD';
+      const saldoEnEsaMoneda = convertirDesdeUSD(Number(c.saldo_usd), monedaMostrar);
+      return (
+        <tr key={c.id} style={{ borderBottom: 'var(--borde-fino)' }}>
+          <td style={estiloTd}>{c.nombre}</td>
+          <td style={estiloTd}>{c.telefono || '—'}</td>
+          <td style={{ ...estiloTd, textAlign: 'right' }}>
+            <span className="texto-display cifra-dinero" style={{ fontSize: '16px', color: 'var(--rojo-cerveloza)' }}>
+              {saldoEnEsaMoneda.toFixed(2)} {monedaMostrar}
+            </span>
+            {monedaMostrar !== 'USD' && (
+              <div style={{ fontSize: '11px', color: 'var(--gris-concreto)' }}>
+                ≈ ${Number(c.saldo_usd).toFixed(2)} USD
+              </div>
+            )}
+          </td>
+          <td style={{ ...estiloTd, textAlign: 'right', whiteSpace: 'nowrap' }}>
+            <button onClick={() => setClienteDetalle(c)} style={estiloBotonTexto}>Ver cuenta</button>
+            <button onClick={() => setClienteAbono(c)} style={{ ...estiloBotonTexto, color: 'var(--rojo-cerveloza)' }}>Abonar</button>
+          </td>
+        </tr>
+      );
+    })}
+  </tbody>
+</table>
         </div>
       )}
 
@@ -213,11 +216,13 @@ function ModalEstadoCuenta({ cliente, onCerrar }) {
                   {m.numero_venta && <span style={{ color: 'var(--gris-concreto)', fontWeight: 400 }}> · {m.numero_venta}</span>}
                 </span>
                 <span
-                  className="cifra-dinero"
-                  style={{ fontWeight: 600, color: m.tipo === 'cargo' ? 'var(--rojo-cerveloza)' : 'var(--grafito)' }}
-                >
-                  {m.tipo === 'cargo' ? '+' : '−'}{Number(m.monto).toFixed(2)} {m.moneda}
-                </span>
+  className="cifra-dinero"
+  style={{ fontWeight: 600, color: m.tipo === 'cargo' ? 'var(--rojo-cerveloza)' : 'var(--grafito)' }}
+>
+  {m.tipo === 'cargo'
+    ? `+${Number(m.monto_original || m.monto).toFixed(2)} ${m.moneda_original || m.moneda}`
+    : `−${Number(m.monto).toFixed(2)} ${m.moneda}`}
+</span>
               </div>
               <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', margin: '2px 0 0' }}>
                 {new Date(m.fecha).toLocaleString()}
