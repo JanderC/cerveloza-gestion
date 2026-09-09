@@ -15,6 +15,7 @@ import Tasas from "./pages/Tasas";
 import MetodosPago from "./pages/MetodosPago";
 import Caja from "./pages/Caja";
 import Clientes from "./pages/Clientes";
+import Colaboraciones from './pages/Colaboraciones';
 
 function RutaProtegida({ children, rolesPermitidos }) {
   const { usuario } = useAuth();
@@ -105,6 +106,11 @@ function AppRoutes() {
             </RutaProtegida>
           }
         />
+
+        <Route path="colaboraciones" element={
+            <RutaProtegida rolesPermitidos={["admin", "cajero"]}>
+            <Colaboraciones />
+            </RutaProtegida>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
