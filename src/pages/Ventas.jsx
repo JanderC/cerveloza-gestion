@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { FiTrash2, FiSearch, FiUserPlus } from 'react-icons/fi';
 import api from '../api/axios';
+import ReciboImprimible from '../components/ReciboImprimible';
 
 const MONEDAS = ['USD', 'COP', 'VES'];
 
@@ -31,6 +32,9 @@ function Ventas() {
   const [resultadosClientes, setResultadosClientes] = useState([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [creandoCliente, setCreandoCliente] = useState(false);
+
+  // Recibo
+  const [ultimoRecibo, setUltimoRecibo] = useState(null);
 
   useEffect(() => {
     cargarDatosIniciales();
@@ -93,21 +97,20 @@ function Ventas() {
   }
 
   function precioUnitarioUSD(producto) {
-  // Si hay un precio fijo manual para la moneda de venta actual, se usa tal cual (sin conversión)
-  if (producto.moneda_base !== monedaVenta) {
-    const campoManual = `precio_manual_${monedaVenta.toLowerCase()}`;
-    if (producto[campoManual] != null) {
-      return convertirAUSD(producto[campoManual], monedaVenta);
+    if (producto.moneda_base !== monedaVenta) {
+      const campoManual = `precio_manual_${monedaVenta.toLowerCase()}`;
+      if (producto[campoManual] != null) {
+        return convertirAUSD(producto[campoManual], monedaVenta);
+      }
     }
+    if (producto.moneda_base === 'USD') return Number(producto.precio_venta);
+    if (producto.moneda_base === 'COP') return Number(producto.precio_venta) / Number(tasa.usd_cop);
+    if (producto.moneda_base === 'VES') {
+      const usdVesEfectivo = tasa.ves_cop_manual ? Number(tasa.usd_cop) / Number(tasa.ves_cop) : Number(tasa.usd_ves);
+      return Number(producto.precio_venta) / usdVesEfectivo;
+    }
+    return 0;
   }
-  if (producto.moneda_base === 'USD') return Number(producto.precio_venta);
-  if (producto.moneda_base === 'COP') return Number(producto.precio_venta) / Number(tasa.usd_cop);
-  if (producto.moneda_base === 'VES') {
-    const usdVesEfectivo = tasa.ves_cop_manual ? Number(tasa.usd_cop) / Number(tasa.ves_cop) : Number(tasa.usd_ves);
-    return Number(producto.precio_venta) / usdVesEfectivo;
-  }
-  return 0;
-}
 
   function precioEnMonedaVenta(producto) {
     return convertirDesdeUSD(precioUnitarioUSD(producto), monedaVenta);
@@ -270,20 +273,48 @@ function Ventas() {
     setProcesando(true);
     try {
       const respuesta = await api.post('/ventas', {
-  productos: carrito.map((item) => ({ producto_id: item.producto.id, cantidad: item.cantidad })),
-  pagos: pagos
-    .filter((p) => p.monto && Number(p.monto) > 0)
-    .map((pago) => ({
-      moneda: pago.moneda,
-      metodo_pago_id: Number(pago.metodo_pago_id),
-      monto: Number(pago.monto),
-      referencia: pago.referencia || null
-    })),
-  cliente_id: clienteSeleccionado?.id || null,
-  sesion_caja_id: sesionCajaId,
-  moneda_venta: monedaVenta,
-  moneda_vuelto: monedaVuelto
-});
+        productos: carrito.map((item) => ({ producto_id: item.producto.id, cantidad: item.cantidad })),
+        pagos: pagos
+          .filter((p) => p.monto && Number(p.monto) > 0)
+          .map((pago) => ({
+            moneda: pago.moneda,
+            metodo_pago_id: Number(pago.metodo_pago_id),
+            monto: Number(pago.monto),
+            referencia: pago.referencia || null
+          })),
+        cliente_id: clienteSeleccionado?.id || null,
+        sesion_caja_id: sesionCajaId,
+        moneda_venta: monedaVenta,
+        moneda_vuelto: monedaVuelto
+      });
+
+      // Arma los datos del recibo antes de limpiar el carrito
+      const datosRecibo = {
+        numeroVenta: respuesta.data.venta.numero_venta,
+        fecha: respuesta.data.venta.fecha || new Date(),
+        cajero: JSON.parse(localStorage.getItem('cerveloza_usuario') || '{}').nombre || '',
+        cliente: clienteSeleccionado?.nombre || null,
+        esFiado: !!respuesta.data.es_fiado,
+        monedaVenta,
+        totalMonedaVenta: totalEnMonedaVenta,
+        items: carrito.map((item) => ({
+          nombre: item.producto.nombre,
+          cantidad: item.cantidad,
+          precioUnitario: convertirDesdeUSD(precioUnitarioUSD(item.producto), monedaVenta),
+          subtotal: convertirDesdeUSD(precioUnitarioUSD(item.producto) * item.cantidad, monedaVenta)
+        })),
+        pagos: pagos
+          .filter((p) => p.monto && Number(p.monto) > 0)
+          .map((p) => ({
+            metodo: metodosPago.find((m) => m.id === Number(p.metodo_pago_id))?.nombre || 'Pago',
+            moneda: p.moneda,
+            monto: Number(p.monto)
+          })),
+        vuelto: respuesta.data.vuelto_monto
+          ? { moneda: respuesta.data.vuelto_moneda, monto: Number(respuesta.data.vuelto_monto) }
+          : null
+      };
+      setUltimoRecibo(datosRecibo);
 
       if (respuesta.data.vuelto_usd > 0.05) {
         toast.success(`Venta registrada. Vuelto: ${convertirDesdeUSD(respuesta.data.vuelto_usd, monedaVenta).toFixed(2)} ${monedaVenta}`);
@@ -510,7 +541,6 @@ function Ventas() {
             </div>
           )}
 
-          {/* Total + referencia rápida multimoneda: se ve siempre, sin tener que cambiar el selector */}
           <div
             style={{
               borderTop: '3px solid var(--grafito)',
@@ -599,7 +629,14 @@ function Ventas() {
                           style={{ borderBottom: 'var(--borde-fino)', cursor: 'pointer' }}
                         >
                           <td style={estiloTd}>{new Date(v.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                          <td style={estiloTd}>{v.numero_venta}</td>
+                          <td style={estiloTd}>
+                            {v.numero_venta}
+                            {v.estado === 'fiado' && (
+                              <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--rojo-cerveloza)', border: '1px solid var(--rojo-cerveloza)', borderRadius: '2px', padding: '0 4px' }}>
+                                FIADO
+                              </span>
+                            )}
+                          </td>
                           <td style={estiloTd}>{v.vendedor}</td>
                           <td className="cifra-dinero" style={estiloTd}>
                             {Number(v.monto_usd) > 0 ? Number(v.monto_usd).toFixed(2) : '—'}
@@ -790,7 +827,6 @@ function Ventas() {
             )}
           </div>
 
-          {/* Botón/panel de fiado — solo aparece cuando realmente falta dinero */}
           {hayFaltante && !clienteSeleccionado && (
             <div style={{ marginBottom: 'var(--espacio-md)' }}>
               {!mostrarFiado ? (
@@ -931,27 +967,27 @@ function Ventas() {
             style={{ width: '100%', maxWidth: '420px', padding: 'var(--espacio-lg)', maxHeight: '80vh', overflowY: 'auto' }}
           >
             <h2 className="texto-display" style={{ fontSize: '16px', marginBottom: '4px' }}>
-  {ventaSeleccionada.venta.numero_venta}
-</h2>
+              {ventaSeleccionada.venta.numero_venta}
+            </h2>
 
-{ventaSeleccionada.venta.estado === 'fiado' && (
-  <div style={{ backgroundColor: 'var(--rojo-cerveloza)', color: 'var(--blanco-hueso)', padding: '4px 10px', fontSize: '12px', fontWeight: 700, display: 'inline-block', marginBottom: 'var(--espacio-sm)' }}>
-    FIADO — PENDIENTE DE PAGO
-  </div>
-)}
+            {ventaSeleccionada.venta.estado === 'fiado' && (
+              <div style={{ backgroundColor: 'var(--rojo-cerveloza)', color: 'var(--blanco-hueso)', padding: '4px 10px', fontSize: '12px', fontWeight: 700, display: 'inline-block', marginBottom: 'var(--espacio-sm)' }}>
+                FIADO — PENDIENTE DE PAGO
+              </div>
+            )}
 
-{ventaSeleccionada.cliente && (
-  <p style={{ fontSize: '13px', color: 'var(--grafito)', marginBottom: '4px' }}>
-    Cliente: <strong>{ventaSeleccionada.cliente.nombre}</strong>
-    {ventaSeleccionada.fiado && (
-      <span style={{ color: 'var(--rojo-cerveloza)' }}> · Saldo pendiente: ${Number(ventaSeleccionada.fiado.saldo_pendiente_usd).toFixed(2)} USD</span>
-    )}
-  </p>
-)}
+            {ventaSeleccionada.cliente && (
+              <p style={{ fontSize: '13px', color: 'var(--grafito)', marginBottom: '4px' }}>
+                Cliente: <strong>{ventaSeleccionada.cliente.nombre}</strong>
+                {ventaSeleccionada.fiado && (
+                  <span style={{ color: 'var(--rojo-cerveloza)' }}> · Saldo pendiente: ${Number(ventaSeleccionada.fiado.saldo_pendiente_usd).toFixed(2)} USD</span>
+                )}
+              </p>
+            )}
 
-<p style={{ fontSize: '12px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-md)' }}>
-  Total: ${Number(ventaSeleccionada.venta.total_usd).toFixed(2)} USD
-</p>
+            <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-md)' }}>
+              Total: ${Number(ventaSeleccionada.venta.total_usd).toFixed(2)} USD
+            </p>
 
             <p style={{ fontSize: '12px', fontWeight: 600, marginBottom: 'var(--espacio-xs)' }}>Productos</p>
             {ventaSeleccionada.detalles.map((d) => (
@@ -964,11 +1000,6 @@ function Ventas() {
             <p style={{ fontSize: '12px', fontWeight: 600, margin: 'var(--espacio-md) 0 var(--espacio-xs)' }}>
               Desglose de pago
             </p>
-            {ventaSeleccionada.venta.vuelto_monto > 0 && (
-  <p style={{ fontSize: '13px', color: 'var(--gris-concreto)', marginTop: 'var(--espacio-sm)', borderTop: 'var(--borde-fino)', paddingTop: 'var(--espacio-sm)' }}>
-    Vuelto entregado: <strong>{Number(ventaSeleccionada.venta.vuelto_monto).toFixed(2)} {ventaSeleccionada.venta.vuelto_moneda}</strong>
-  </p>
-)}
             {ventaSeleccionada.pagos.map((p) => (
               <div key={p.id} style={{ borderTop: 'var(--borde-fino)', padding: '6px 0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
@@ -983,6 +1014,12 @@ function Ventas() {
               </div>
             ))}
 
+            {ventaSeleccionada.venta.vuelto_monto > 0 && (
+              <p style={{ fontSize: '13px', color: 'var(--gris-concreto)', marginTop: 'var(--espacio-sm)', borderTop: 'var(--borde-fino)', paddingTop: 'var(--espacio-sm)' }}>
+                Vuelto entregado: <strong>{Number(ventaSeleccionada.venta.vuelto_monto).toFixed(2)} {ventaSeleccionada.venta.vuelto_moneda}</strong>
+              </p>
+            )}
+
             <button
               onClick={() => setVentaSeleccionada(null)}
               style={{ ...estiloBotonSecundario, width: '100%', marginTop: 'var(--espacio-lg)' }}
@@ -992,6 +1029,33 @@ function Ventas() {
           </div>
         </div>
       )}
+
+      {ultimoRecibo && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(26, 26, 26, 0.6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 40
+          }}
+        >
+          <div className="superficie" style={{ width: '100%', maxWidth: '340px', padding: 'var(--espacio-lg)', textAlign: 'center' }}>
+            <h2 className="texto-display" style={{ fontSize: '18px', marginBottom: 'var(--espacio-sm)' }}>
+              Venta registrada
+            </h2>
+            <p style={{ fontSize: '14px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-lg)' }}>
+              Folio: {ultimoRecibo.numeroVenta}
+            </p>
+
+            <button onClick={() => window.print()} style={{ ...estiloBotonPrimario, width: '100%', marginBottom: 'var(--espacio-sm)' }}>
+              Imprimir recibo
+            </button>
+            <button onClick={() => setUltimoRecibo(null)} style={{ ...estiloBotonSecundario, width: '100%' }}>
+              Cerrar sin imprimir
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ReciboImprimible datos={ultimoRecibo} />
     </div>
   );
 }

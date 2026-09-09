@@ -136,3 +136,49 @@ input[type='number'] {
     padding: 0 var(--espacio-md) !important;
   }
 }
+
+/* ===== RECIBO TÉRMICO 80MM (impresión) ===== */
+
+.recibo-imprimible {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .recibo-imprimible,
+  .recibo-imprimible * {
+    visibility: visible;
+  }
+
+  .recibo-imprimible {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    padding: 4mm;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: #000;
+  }
+
+  .recibo-linea {
+    border: none;
+    border-top: 1px dashed #000;
+    margin: 3mm 0;
+  }
+
+  .recibo-fila {
+    display: flex;
+    justify-content: space-between;
+    gap: 4px;
+  }
+}
