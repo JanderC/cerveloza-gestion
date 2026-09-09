@@ -5,9 +5,9 @@ function ReciboImprimible({ datos }) {
 
   return (
     <div className="recibo-imprimible">
-      <div style={{ textAlign: 'center', marginBottom: '2mm' }}>
-        <div style={{ fontWeight: 'bold', fontSize: '15px' }}>CERVELOZA</div>
-        <div style={{ fontSize: '10px' }}>Sistema de inventario y ventas</div>
+      <div style={{ textAlign: 'center', marginBottom: '3mm' }}>
+        <div style={{ fontWeight: 800, fontSize: '19px', letterSpacing: '0.5px' }}>CERVELOZA</div>
+        <div style={{ fontSize: '12px' }}>Sistema de inventario y ventas</div>
       </div>
 
       <hr className="recibo-linea" />
@@ -20,8 +20,8 @@ function ReciboImprimible({ datos }) {
       <hr className="recibo-linea" />
 
       {items.map((item, i) => (
-        <div key={i} style={{ marginBottom: '1.5mm' }}>
-          <div>{item.nombre}</div>
+        <div key={i} style={{ marginBottom: '2.5mm' }}>
+          <div style={{ fontWeight: 700 }}>{item.nombre}</div>
           <div className="recibo-fila">
             <span>{item.cantidad} x {item.precioUnitario.toFixed(2)}</span>
             <span>{item.subtotal.toFixed(2)}</span>
@@ -31,14 +31,14 @@ function ReciboImprimible({ datos }) {
 
       <hr className="recibo-linea" />
 
-      <div className="recibo-fila" style={{ fontWeight: 'bold', fontSize: '13px' }}>
+      <div className="recibo-fila" style={{ fontWeight: 800, fontSize: '17px' }}>
         <span>TOTAL ({monedaVenta})</span>
         <span>{totalMonedaVenta.toFixed(2)}</span>
       </div>
 
       <hr className="recibo-linea" />
 
-      <div style={{ marginBottom: '1mm', fontWeight: 'bold' }}>Pagos:</div>
+      <div style={{ marginBottom: '2mm', fontWeight: 800 }}>Pagos:</div>
       {pagos.map((p, i) => (
         <div key={i} className="recibo-fila">
           <span>{p.metodo} ({p.moneda})</span>
@@ -47,7 +47,7 @@ function ReciboImprimible({ datos }) {
       ))}
 
       {vuelto && vuelto.monto > 0 && (
-        <div className="recibo-fila" style={{ marginTop: '1mm' }}>
+        <div className="recibo-fila" style={{ marginTop: '2mm' }}>
           <span>Vuelto ({vuelto.moneda})</span>
           <span>{vuelto.monto.toFixed(2)}</span>
         </div>
@@ -56,7 +56,7 @@ function ReciboImprimible({ datos }) {
       {esFiado && (
         <>
           <hr className="recibo-linea" />
-          <div style={{ textAlign: 'center', fontWeight: 'bold' }}>
+          <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '15px' }}>
             *** SALDO FIADO PENDIENTE ***
           </div>
         </>
@@ -64,7 +64,7 @@ function ReciboImprimible({ datos }) {
 
       <hr className="recibo-linea" />
 
-      <div style={{ textAlign: 'center', fontSize: '10px', marginTop: '2mm' }}>
+      <div style={{ textAlign: 'center', fontSize: '12px', marginTop: '3mm' }}>
         ¡Gracias por su compra!
       </div>
     </div>

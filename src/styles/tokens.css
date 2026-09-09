@@ -138,7 +138,6 @@ input[type='number'] {
 }
 
 /* ===== RECIBO TÉRMICO 80MM (impresión) ===== */
-
 .recibo-imprimible {
   display: none;
 }
@@ -165,20 +164,23 @@ input[type='number'] {
     top: 0;
     width: 80mm;
     padding: 4mm;
-    font-family: 'Courier New', monospace;
-    font-size: 11px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    line-height: 1.4;
     color: #000;
   }
 
   .recibo-linea {
     border: none;
-    border-top: 1px dashed #000;
+    border-top: 2px dashed #000;
     margin: 3mm 0;
   }
 
   .recibo-fila {
     display: flex;
     justify-content: space-between;
-    gap: 4px;
+    gap: 6px;
   }
 }
