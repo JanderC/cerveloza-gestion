@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { FiGrid, FiShoppingCart, FiBox, FiBookOpen, FiPieChart, FiUsers, FiTrendingUp, FiCreditCard, FiDollarSign, FiUserCheck, FiGift } from 'react-icons/fi';
+import { useAuth } from '../../context/AuthContext';
 
 const enlaces = [
   { to: '/dashboard', icono: FiGrid, titulo: 'Dashboard', roles: ['admin', 'cajero'] },
