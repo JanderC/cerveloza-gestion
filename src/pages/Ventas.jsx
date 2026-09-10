@@ -18,8 +18,6 @@ function Ventas() {
   const [ventasHoy, setVentasHoy] = useState([]);
   const [procesando, setProcesando] = useState(false);
   const [cargandoInicial, setCargandoInicial] = useState(true);
-  const [mostrarVueltos, setMostrarVueltos] = useState(false);
-  const [monedaVuelto, setMonedaVuelto] = useState('USD');
   const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
   const [busquedaVentas, setBusquedaVentas] = useState('');
   const [paginaVentas, setPaginaVentas] = useState(1);
@@ -96,20 +94,21 @@ function Ventas() {
     return montoUSD;
   }
 
+  // Precio exacto: 1) moneda base, 2) precio fijo propio, 3) cruce directo COP<->VES si hay precio fijo "hermano", 4) conversión desde base
   function precioUnitarioUSD(producto) {
-    if (producto.moneda_base !== monedaVenta) {
-      const campoManual = `precio_manual_${monedaVenta.toLowerCase()}`;
-      if (producto[campoManual] != null) {
-        return convertirAUSD(producto[campoManual], monedaVenta);
-      }
+    if (monedaVenta === producto.moneda_base) return Number(producto.precio_venta);
+
+    const manualDestino = producto[`precio_manual_${monedaVenta.toLowerCase()}`];
+    if (manualDestino != null) return convertirAUSD(manualDestino, monedaVenta);
+
+    if (monedaVenta === 'VES' && producto.precio_manual_cop != null) {
+      return convertirAUSD(producto.precio_manual_cop, 'COP');
     }
-    if (producto.moneda_base === 'USD') return Number(producto.precio_venta);
-    if (producto.moneda_base === 'COP') return Number(producto.precio_venta) / Number(tasa.usd_cop);
-    if (producto.moneda_base === 'VES') {
-      const usdVesEfectivo = tasa.ves_cop_manual ? Number(tasa.usd_cop) / Number(tasa.ves_cop) : Number(tasa.usd_ves);
-      return Number(producto.precio_venta) / usdVesEfectivo;
+    if (monedaVenta === 'COP' && producto.precio_manual_ves != null) {
+      return convertirAUSD(producto.precio_manual_ves, 'VES');
     }
-    return 0;
+
+    return convertirAUSD(producto.precio_venta, producto.moneda_base);
   }
 
   function precioEnMonedaVenta(producto) {
@@ -162,7 +161,6 @@ function Ventas() {
   const faltanteUSD = totalUSD - totalPagadoUSD;
   const montoExcedenteUSD = totalPagadoUSD - totalUSD;
   const hayVuelto = montoExcedenteUSD > 0.05;
-  const vueltoEnMonedaSeleccionada = convertirDesdeUSD(montoExcedenteUSD, monedaVuelto);
   const hayFaltante = faltanteUSD > 0.05;
 
   function calcularRestanteUSD(excluirIndex) {
@@ -285,10 +283,9 @@ function Ventas() {
         cliente_id: clienteSeleccionado?.id || null,
         sesion_caja_id: sesionCajaId,
         moneda_venta: monedaVenta,
-        moneda_vuelto: monedaVuelto
+        moneda_vuelto: monedaVenta
       });
 
-      // Arma los datos del recibo antes de limpiar el carrito
       const datosRecibo = {
         numeroVenta: respuesta.data.venta.numero_venta,
         fecha: respuesta.data.venta.fecha || new Date(),
@@ -326,7 +323,6 @@ function Ventas() {
 
       setCarrito([]);
       setPagos([{ moneda: monedaVenta, metodo_pago_id: metodosPago[0]?.id || '', monto: '', referencia: '', autoCalculado: true }]);
-      setMostrarVueltos(false);
       setClienteSeleccionado(null);
       cargarDatosIniciales();
     } catch (error) {
@@ -825,10 +821,29 @@ function Ventas() {
                 </button>
               </div>
             )}
+
+            {/* Vuelto: solo visual, siempre visible cuando corresponde, sin selector ni panel aparte */}
+            {hayVuelto && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderTop: '2px solid var(--rojo-cerveloza)',
+                  marginTop: 'var(--espacio-sm)',
+                  paddingTop: 'var(--espacio-sm)'
+                }}
+              >
+                <span style={{ fontSize: '14px', color: 'var(--rojo-cerveloza)', fontWeight: 700 }}>Vuelto a entregar</span>
+                <span className="texto-display cifra-dinero" style={{ fontSize: '20px', color: 'var(--rojo-cerveloza)' }}>
+                  {convertirDesdeUSD(montoExcedenteUSD, monedaVenta).toFixed(2)} {monedaVenta}
+                </span>
+              </div>
+            )}
           </div>
 
           {hayFaltante && !clienteSeleccionado && (
-            <div style={{ marginBottom: 'var(--espacio-md)' }}>
+            <div style={{ marginBottom: 'var(--espacio-lg)' }}>
               {!mostrarFiado ? (
                 <button onClick={() => setMostrarFiado(true)} style={{ ...estiloBotonSecundario, width: '100%', borderColor: 'var(--rojo-cerveloza)', color: 'var(--rojo-cerveloza)' }}>
                   <FiUserPlus size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
@@ -877,62 +892,6 @@ function Ventas() {
                   <button onClick={() => setMostrarFiado(false)} style={{ ...estiloBotonSecundario, width: '100%', marginTop: 'var(--espacio-sm)' }}>
                     Cancelar
                   </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          <button
-            onClick={() => setMostrarVueltos(!mostrarVueltos)}
-            style={{
-              ...estiloBotonSecundario,
-              width: '100%',
-              marginBottom: mostrarVueltos ? 'var(--espacio-sm)' : 'var(--espacio-lg)',
-              borderColor: hayVuelto ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
-              color: hayVuelto ? 'var(--rojo-cerveloza)' : 'var(--grafito)'
-            }}
-          >
-            {hayVuelto ? 'Control de vueltos · hay excedente' : 'Control de vueltos'}
-          </button>
-
-          {mostrarVueltos && (
-            <div className="superficie" style={{ padding: 'var(--espacio-md)', marginBottom: 'var(--espacio-lg)' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-xs)' }}>
-                Devolver vuelto en
-              </label>
-              <div style={{ display: 'flex', gap: '4px', marginBottom: 'var(--espacio-sm)' }}>
-                {MONEDAS.map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setMonedaVuelto(m)}
-                    style={{
-                      flex: 1,
-                      padding: '6px',
-                      border: 'var(--borde-fino)',
-                      borderColor: monedaVuelto === m ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
-                      backgroundColor: monedaVuelto === m ? 'var(--rojo-cerveloza)' : 'transparent',
-                      color: monedaVuelto === m ? 'var(--blanco-hueso)' : 'var(--grafito)',
-                      fontFamily: 'var(--fuente-base)',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      borderRadius: '2px'
-                    }}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-
-              {!hayVuelto ? (
-                <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', margin: 0 }}>
-                  No hay excedente que devolver todavía.
-                </p>
-              ) : (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>Vuelto a entregar</span>
-                  <span className="texto-display cifra-dinero" style={{ fontSize: '22px', color: 'var(--rojo-cerveloza)' }}>
-                    {vueltoEnMonedaSeleccionada.toFixed(2)} {monedaVuelto}
-                  </span>
                 </div>
               )}
             </div>

@@ -102,6 +102,30 @@ function Caja() {
               })}
             </div>
 
+            {/* Desglose por método de pago dentro de cada moneda */}
+            {resumen.pagos_por_metodo && resumen.pagos_por_metodo.length > 0 && (
+              <div style={{ marginTop: 'var(--espacio-md)', borderTop: 'var(--borde-fino)', paddingTop: 'var(--espacio-md)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--gris-concreto)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+                  Desglose por método de pago
+                </span>
+                {MONEDAS.map((m) => {
+                  const filas = resumen.pagos_por_metodo.filter((p) => p.moneda === m);
+                  if (filas.length === 0) return null;
+                  return (
+                    <div key={m} style={{ marginBottom: '6px' }}>
+                      <strong style={{ fontSize: '13px' }}>{m}:</strong>{' '}
+                      {filas.map((f, i) => (
+                        <span key={f.metodo} style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
+                          {f.metodo} <span className="cifra-dinero" style={{ color: 'var(--grafito)' }}>{Number(f.total).toFixed(2)}</span>
+                          {i < filas.length - 1 ? ' · ' : ''}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {Number(resumen.fiado_otorgado_usd) > 0 && (
               <p style={{ fontSize: '13px', color: 'var(--gris-concreto)', marginTop: 'var(--espacio-md)' }}>
                 Fiado otorgado en este turno: <strong>${Number(resumen.fiado_otorgado_usd).toFixed(2)} USD</strong> (no afecta el efectivo)
@@ -120,7 +144,6 @@ function Caja() {
         </>
       )}
 
-      {/* Historial */}
       <div>
         <h2 className="texto-display" style={{ fontSize: '16px', marginBottom: 'var(--espacio-sm)' }}>
           Historial de cierres
