@@ -271,6 +271,7 @@ function ModalEstadoCuenta({ cliente, onCerrar }) {
 
 function ModalAbono({ cliente, onCerrar, onGuardado }) {
   const monedasConDeuda = cliente.saldos.map((s) => s.moneda);
+  const [modo, setModo] = useState('completo'); // 'completo' | 'parcial'
   const [form, setForm] = useState({ moneda: monedasConDeuda[0] || 'USD', monto: '', metodo_pago_id: '' });
   const [metodosPago, setMetodosPago] = useState([]);
   const [guardando, setGuardando] = useState(false);
@@ -287,7 +288,10 @@ function ModalAbono({ cliente, onCerrar, onGuardado }) {
 
   async function manejarSubmit(e) {
     e.preventDefault();
-    if (!form.monto || Number(form.monto) <= 0) {
+
+    const montoFinal = modo === 'completo' ? saldoActual : Number(form.monto);
+
+    if (!montoFinal || montoFinal <= 0) {
       toast.error('Ingresa un monto válido');
       return;
     }
@@ -297,10 +301,10 @@ function ModalAbono({ cliente, onCerrar, onGuardado }) {
       await api.post('/clientes/abono', {
         cliente_id: cliente.id,
         moneda: form.moneda,
-        monto: Number(form.monto),
+        monto: montoFinal,
         metodo_pago_id: Number(form.metodo_pago_id)
       });
-      toast.success('Abono registrado');
+      toast.success(modo === 'completo' ? 'Deuda cancelada por completo' : 'Abono registrado');
       onGuardado();
     } catch (error) {
       toast.error(error.response?.data?.message || 'No se pudo registrar el abono');
@@ -313,7 +317,7 @@ function ModalAbono({ cliente, onCerrar, onGuardado }) {
     <div style={estiloOverlay} onClick={onCerrar}>
       <form onSubmit={manejarSubmit} style={estiloModal} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: 'var(--espacio-lg)', borderBottom: 'var(--borde-fino)' }}>
-          <h2 className="texto-display" style={{ fontSize: '18px', margin: 0 }}>Registrar abono</h2>
+          <h2 className="texto-display" style={{ fontSize: '18px', margin: 0 }}>Registrar pago</h2>
           <p style={{ fontSize: '13px', color: 'var(--gris-concreto)', margin: '4px 0 0' }}>{cliente.nombre}</p>
         </div>
 
@@ -346,22 +350,66 @@ function ModalAbono({ cliente, onCerrar, onGuardado }) {
             Debe: <strong className="cifra-dinero">{saldoActual.toFixed(2)} {etiquetaMoneda(form.moneda)}</strong>
           </p>
 
-          <label style={estiloLabel}>Monto a abonar ({etiquetaMoneda(form.moneda)})</label>
-          <input
-            type="number"
-            step="0.01"
-            value={form.monto}
-            onChange={(e) => setForm((p) => ({ ...p, monto: e.target.value }))}
-            autoFocus
-            style={{ ...estiloInput, marginBottom: 'var(--espacio-md)' }}
-          />
-          <button
-            type="button"
-            onClick={() => setForm((p) => ({ ...p, monto: saldoActual.toFixed(2) }))}
-            style={{ ...estiloBotonTexto, marginBottom: 'var(--espacio-md)' }}
-          >
-            Pagar todo ({saldoActual.toFixed(2)} {etiquetaMoneda(form.moneda)})
-          </button>
+          {/* Selector de modo: completo o parcial, bien explícito */}
+          <div style={{ display: 'flex', gap: '6px', marginBottom: 'var(--espacio-md)' }}>
+            <button
+              type="button"
+              onClick={() => setModo('completo')}
+              style={{
+                flex: 1, padding: '10px', border: 'var(--borde-fino)',
+                borderColor: modo === 'completo' ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
+                backgroundColor: modo === 'completo' ? 'var(--rojo-cerveloza)' : 'transparent',
+                color: modo === 'completo' ? 'var(--blanco-hueso)' : 'var(--grafito)',
+                fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', borderRadius: '2px'
+              }}
+            >
+              Pago completo
+            </button>
+            <button
+              type="button"
+              onClick={() => setModo('parcial')}
+              style={{
+                flex: 1, padding: '10px', border: 'var(--borde-fino)',
+                borderColor: modo === 'parcial' ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
+                backgroundColor: modo === 'parcial' ? 'var(--rojo-cerveloza)' : 'transparent',
+                color: modo === 'parcial' ? 'var(--blanco-hueso)' : 'var(--grafito)',
+                fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', borderRadius: '2px'
+              }}
+            >
+              Abono parcial
+            </button>
+          </div>
+
+          {modo === 'completo' ? (
+            <div
+              style={{
+                backgroundColor: 'var(--gris-humo)',
+                borderLeft: '4px solid var(--rojo-cerveloza)',
+                padding: 'var(--espacio-md)',
+                marginBottom: 'var(--espacio-md)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'baseline'
+              }}
+            >
+              <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>Va a pagar</span>
+              <span className="texto-display cifra-dinero" style={{ fontSize: '20px' }}>
+                {saldoActual.toFixed(2)} {etiquetaMoneda(form.moneda)}
+              </span>
+            </div>
+          ) : (
+            <>
+              <label style={estiloLabel}>Monto a abonar ({etiquetaMoneda(form.moneda)})</label>
+              <input
+                type="number"
+                step="0.01"
+                value={form.monto}
+                onChange={(e) => setForm((p) => ({ ...p, monto: e.target.value }))}
+                autoFocus
+                style={{ ...estiloInput, marginBottom: 'var(--espacio-md)' }}
+              />
+            </>
+          )}
 
           <label style={estiloLabel}>Método de pago</label>
           <select value={form.metodo_pago_id} onChange={(e) => setForm((p) => ({ ...p, metodo_pago_id: e.target.value }))} style={estiloInput}>
@@ -374,7 +422,7 @@ function ModalAbono({ cliente, onCerrar, onGuardado }) {
         <div style={{ display: 'flex', gap: 'var(--espacio-sm)', padding: 'var(--espacio-lg)', borderTop: 'var(--borde-fino)' }}>
           <button type="button" onClick={onCerrar} style={estiloBotonSecundario}>Cancelar</button>
           <button type="submit" disabled={guardando} style={{ ...estiloBotonPrimario, flex: 1 }}>
-            {guardando ? 'Guardando...' : 'Registrar abono'}
+            {guardando ? 'Guardando...' : modo === 'completo' ? 'Confirmar pago completo' : 'Registrar abono'}
           </button>
         </div>
       </form>
