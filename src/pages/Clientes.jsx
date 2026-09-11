@@ -4,16 +4,19 @@ import api from '../api/axios';
 
 const MONEDAS = ['USD', 'COP', 'VES'];
 
+function etiquetaMoneda(m) {
+  return m === 'VES' ? 'Bs' : m;
+}
+
 function Clientes() {
   const [clientes, setClientes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [clienteDetalle, setClienteDetalle] = useState(null);
   const [clienteAbono, setClienteAbono] = useState(null);
-  const [tasa, setTasa] = useState(null);
+  const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false);
 
   useEffect(() => {
     cargarClientes();
-    cargarTasa();
   }, []);
 
   async function cargarClientes() {
@@ -28,39 +31,27 @@ function Clientes() {
     }
   }
 
-  async function cargarTasa() {
-    try {
-      const respuesta = await api.get('/tasas/actual');
-      setTasa(respuesta.data);
-    } catch (error) {
-      // silencioso
+  const clientesConDeuda = clientes.filter((c) => c.saldos && c.saldos.length > 0);
+  const clientesSinDeuda = clientes.filter((c) => !c.saldos || c.saldos.length === 0);
+
+  // Total por cobrar, agrupado por moneda (nunca mezclado en un solo número)
+  const totalesPorMoneda = {};
+  for (const c of clientesConDeuda) {
+    for (const s of c.saldos) {
+      totalesPorMoneda[s.moneda] = (totalesPorMoneda[s.moneda] || 0) + s.saldo;
     }
   }
-
-  function convertirDesdeUSD(montoUSD, moneda) {
-    if (!tasa) return montoUSD;
-    if (moneda === 'USD') return montoUSD;
-    if (moneda === 'COP') return montoUSD * Number(tasa.usd_cop);
-    if (moneda === 'VES') {
-      const usdVesEfectivo = tasa.ves_cop_manual ? Number(tasa.usd_cop) / Number(tasa.ves_cop) : Number(tasa.usd_ves);
-      return montoUSD * usdVesEfectivo;
-    }
-    return montoUSD;
-  }
-
-  const clientesConDeuda = clientes.filter((c) => Number(c.saldo_usd) > 0.01);
-  const totalDeudaUSD = clientesConDeuda.reduce((acc, c) => acc + Number(c.saldo_usd), 0);
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--espacio-lg)', flexWrap: 'wrap', gap: 'var(--espacio-md)' }}>
         <h1 className="texto-display" style={{ fontSize: '22px' }}>Clientes y fiados</h1>
-        <button onClick={() => setClienteAbono({ nuevo: true })} style={estiloBotonSecundario}>
+        <button onClick={() => setMostrarNuevoCliente(true)} style={estiloBotonSecundario}>
           + Cliente nuevo
         </button>
       </div>
 
-      {!cargando && (
+      {!cargando && Object.keys(totalesPorMoneda).length > 0 && (
         <div
           style={{
             backgroundColor: 'var(--gris-humo)',
@@ -68,14 +59,20 @@ function Clientes() {
             padding: 'var(--espacio-lg)',
             marginBottom: 'var(--espacio-lg)',
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'baseline'
+            gap: 'var(--espacio-xl)',
+            flexWrap: 'wrap'
           }}
         >
-          <span style={{ fontSize: '14px', color: 'var(--gris-concreto)', fontWeight: 600 }}>Total por cobrar</span>
-          <span className="texto-display cifra-dinero" style={{ fontSize: '26px', color: 'var(--rojo-cerveloza)' }}>
-            ${totalDeudaUSD.toFixed(2)} USD
-          </span>
+          {MONEDAS.filter((m) => totalesPorMoneda[m] > 0).map((m) => (
+            <div key={m}>
+              <span style={{ fontSize: '12px', color: 'var(--gris-concreto)', display: 'block' }}>
+                Total por cobrar ({etiquetaMoneda(m)})
+              </span>
+              <span className="texto-display cifra-dinero" style={{ fontSize: '22px', color: 'var(--rojo-cerveloza)' }}>
+                {totalesPorMoneda[m].toFixed(2)}
+              </span>
+            </div>
+          ))}
         </div>
       )}
 
@@ -88,54 +85,58 @@ function Clientes() {
       {!cargando && clientesConDeuda.length > 0 && (
         <div className="tabla-scroll">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-  <thead>
-    <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
-      <th style={estiloTh}>Cliente</th>
-      <th style={estiloTh}>Teléfono</th>
-      <th style={{ ...estiloTh, textAlign: 'right' }}>Saldo</th>
-      <th style={estiloTh}></th>
-    </tr>
-  </thead>
-  <tbody>
-    {clientesConDeuda.map((c) => {
-      const monedaMostrar = c.moneda_reciente || 'USD';
-      const saldoEnEsaMoneda = convertirDesdeUSD(Number(c.saldo_usd), monedaMostrar);
-      return (
-        <tr key={c.id} style={{ borderBottom: 'var(--borde-fino)' }}>
-          <td style={estiloTd}>{c.nombre}</td>
-          <td style={estiloTd}>{c.telefono || '—'}</td>
-          <td style={{ ...estiloTd, textAlign: 'right' }}>
-            <span className="texto-display cifra-dinero" style={{ fontSize: '16px', color: 'var(--rojo-cerveloza)' }}>
-              {saldoEnEsaMoneda.toFixed(2)} {monedaMostrar}
-            </span>
-            {monedaMostrar !== 'USD' && (
-              <div style={{ fontSize: '11px', color: 'var(--gris-concreto)' }}>
-                ≈ ${Number(c.saldo_usd).toFixed(2)} USD
-              </div>
-            )}
-          </td>
-          <td style={{ ...estiloTd, textAlign: 'right', whiteSpace: 'nowrap' }}>
-            <button onClick={() => setClienteDetalle(c)} style={estiloBotonTexto}>Ver cuenta</button>
-            <button onClick={() => setClienteAbono(c)} style={{ ...estiloBotonTexto, color: 'var(--rojo-cerveloza)' }}>Abonar</button>
-          </td>
-        </tr>
-      );
-    })}
-  </tbody>
-</table>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+                <th style={estiloTh}>Cliente</th>
+                <th style={estiloTh}>Teléfono</th>
+                <th style={estiloTh}>Debe</th>
+                <th style={estiloTh}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {clientesConDeuda.map((c) => (
+                <tr key={c.id} style={{ borderBottom: 'var(--borde-fino)' }}>
+                  <td style={estiloTd}>{c.nombre}</td>
+                  <td style={estiloTd}>{c.telefono || '—'}</td>
+                  <td style={estiloTd}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {c.saldos.map((s) => (
+                        <span
+                          key={s.moneda}
+                          className="texto-display cifra-dinero"
+                          style={{
+                            fontSize: '14px',
+                            color: 'var(--rojo-cerveloza)',
+                            border: '1px solid var(--rojo-cerveloza)',
+                            padding: '2px 8px',
+                            borderRadius: '2px'
+                          }}
+                        >
+                          {s.saldo.toFixed(2)} {etiquetaMoneda(s.moneda)}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td style={{ ...estiloTd, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <button onClick={() => setClienteDetalle(c)} style={estiloBotonTexto}>Ver cuenta</button>
+                    <button onClick={() => setClienteAbono(c)} style={{ ...estiloBotonTexto, color: 'var(--rojo-cerveloza)' }}>Abonar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Clientes sin deuda, colapsado abajo */}
-      {!cargando && clientes.filter((c) => Number(c.saldo_usd) <= 0.01).length > 0 && (
+      {!cargando && clientesSinDeuda.length > 0 && (
         <details style={{ marginTop: 'var(--espacio-xl)' }}>
           <summary style={{ cursor: 'pointer', fontSize: '14px', color: 'var(--gris-concreto)' }}>
-            Ver clientes sin deuda pendiente ({clientes.filter((c) => Number(c.saldo_usd) <= 0.01).length})
+            Ver clientes sin deuda pendiente ({clientesSinDeuda.length})
           </summary>
           <div className="tabla-scroll" style={{ marginTop: 'var(--espacio-sm)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <tbody>
-                {clientes.filter((c) => Number(c.saldo_usd) <= 0.01).map((c) => (
+                {clientesSinDeuda.map((c) => (
                   <tr key={c.id} style={{ borderBottom: 'var(--borde-fino)' }}>
                     <td style={estiloTd}>{c.nombre}</td>
                     <td style={estiloTd}>{c.telefono || '—'}</td>
@@ -151,18 +152,25 @@ function Clientes() {
       )}
 
       {clienteDetalle && (
-        <ModalEstadoCuenta
-          cliente={clienteDetalle}
-          onCerrar={() => setClienteDetalle(null)}
-        />
+        <ModalEstadoCuenta cliente={clienteDetalle} onCerrar={() => setClienteDetalle(null)} />
       )}
 
       {clienteAbono && (
         <ModalAbono
-          cliente={clienteAbono.nuevo ? null : clienteAbono}
+          cliente={clienteAbono}
           onCerrar={() => setClienteAbono(null)}
           onGuardado={() => {
             setClienteAbono(null);
+            cargarClientes();
+          }}
+        />
+      )}
+
+      {mostrarNuevoCliente && (
+        <ModalNuevoCliente
+          onCerrar={() => setMostrarNuevoCliente(false)}
+          onGuardado={() => {
+            setMostrarNuevoCliente(false);
             cargarClientes();
           }}
         />
@@ -196,10 +204,17 @@ function ModalEstadoCuenta({ cliente, onCerrar }) {
       <div style={{ ...estiloModal, maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: 'var(--espacio-lg)', borderBottom: 'var(--borde-fino)' }}>
           <h2 className="texto-display" style={{ fontSize: '18px', margin: 0 }}>{cliente.nombre}</h2>
-          {cargando ? null : (
-            <p style={{ fontSize: '14px', color: Number(cuenta.saldo_usd) > 0.01 ? 'var(--rojo-cerveloza)' : 'var(--grafito)', margin: '4px 0 0', fontWeight: 600 }}>
-              Saldo: ${Number(cuenta.saldo_usd).toFixed(2)} USD
-            </p>
+          {!cargando && cuenta.saldos.length > 0 && (
+            <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+              {cuenta.saldos.map((s) => (
+                <span key={s.moneda} className="texto-display cifra-dinero" style={{ fontSize: '15px', color: 'var(--rojo-cerveloza)' }}>
+                  {s.saldo.toFixed(2)} {etiquetaMoneda(s.moneda)}
+                </span>
+              ))}
+            </div>
+          )}
+          {!cargando && cuenta.saldos.length === 0 && (
+            <p style={{ fontSize: '13px', color: 'var(--grafito)', margin: '4px 0 0' }}>Sin deuda pendiente</p>
           )}
         </div>
 
@@ -212,22 +227,32 @@ function ModalEstadoCuenta({ cliente, onCerrar }) {
             <div key={m.id} style={{ borderBottom: 'var(--borde-fino)', padding: '8px 0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {m.tipo === 'cargo' ? 'Fiado' : 'Abono'}
+                  {m.tipo === 'cargo' ? 'Consumo' : 'Abono'}
                   {m.numero_venta && <span style={{ color: 'var(--gris-concreto)', fontWeight: 400 }}> · {m.numero_venta}</span>}
                 </span>
                 <span
-  className="cifra-dinero"
-  style={{ fontWeight: 600, color: m.tipo === 'cargo' ? 'var(--rojo-cerveloza)' : 'var(--grafito)' }}
->
-  {m.tipo === 'cargo'
-    ? `+${Number(m.monto_original || m.monto).toFixed(2)} ${m.moneda_original || m.moneda}`
-    : `−${Number(m.monto).toFixed(2)} ${m.moneda}`}
-</span>
+                  className="cifra-dinero"
+                  style={{ fontWeight: 600, color: m.tipo === 'cargo' ? 'var(--rojo-cerveloza)' : 'var(--grafito)' }}
+                >
+                  {m.tipo === 'cargo' ? '+' : '−'}{Number(m.monto).toFixed(2)} {etiquetaMoneda(m.moneda)}
+                </span>
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', margin: '2px 0 0' }}>
+
+              {m.productos && m.productos.length > 0 && (
+                <div style={{ marginTop: '4px', marginLeft: '8px', borderLeft: '2px solid var(--gris-humo)', paddingLeft: '8px' }}>
+                  {m.productos.map((p, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--gris-concreto)' }}>
+                      <span>{p.cantidad}x {p.nombre}</span>
+                      <span>{Number(p.subtotal_original).toFixed(2)} {etiquetaMoneda(p.moneda_original)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', margin: '4px 0 0' }}>
                 {new Date(m.fecha).toLocaleString()}
                 {m.metodo_nombre && ` · ${m.metodo_nombre}`}
-                {m.tipo === 'cargo' && Number(m.saldo_pendiente_usd) <= 0.01 && (
+                {m.tipo === 'cargo' && Number(m.saldo_pendiente_original) <= 0.01 && (
                   <span style={{ color: 'var(--grafito)' }}> · Saldado ✓</span>
                 )}
               </p>
@@ -245,9 +270,8 @@ function ModalEstadoCuenta({ cliente, onCerrar }) {
 }
 
 function ModalAbono({ cliente, onCerrar, onGuardado }) {
-  const [nombreNuevo, setNombreNuevo] = useState('');
-  const [telefonoNuevo, setTelefonoNuevo] = useState('');
-  const [form, setForm] = useState({ moneda: 'USD', monto: '', metodo_pago_id: '' });
+  const monedasConDeuda = cliente.saldos.map((s) => s.moneda);
+  const [form, setForm] = useState({ moneda: monedasConDeuda[0] || 'USD', monto: '', metodo_pago_id: '' });
   const [metodosPago, setMetodosPago] = useState([]);
   const [guardando, setGuardando] = useState(false);
 
@@ -259,28 +283,10 @@ function ModalAbono({ cliente, onCerrar, onGuardado }) {
     });
   }, []);
 
+  const saldoActual = cliente.saldos.find((s) => s.moneda === form.moneda)?.saldo || 0;
+
   async function manejarSubmit(e) {
     e.preventDefault();
-
-    if (!cliente) {
-      // Modo "crear cliente nuevo" sin abono, solo registro
-      if (!nombreNuevo.trim()) {
-        toast.error('Ingresa el nombre del cliente');
-        return;
-      }
-      setGuardando(true);
-      try {
-        await api.post('/clientes', { nombre: nombreNuevo.trim(), telefono: telefonoNuevo || null });
-        toast.success('Cliente creado');
-        onGuardado();
-      } catch (error) {
-        toast.error('No se pudo crear el cliente');
-      } finally {
-        setGuardando(false);
-      }
-      return;
-    }
-
     if (!form.monto || Number(form.monto) <= 0) {
       toast.error('Ingresa un monto válido');
       return;
@@ -307,57 +313,114 @@ function ModalAbono({ cliente, onCerrar, onGuardado }) {
     <div style={estiloOverlay} onClick={onCerrar}>
       <form onSubmit={manejarSubmit} style={estiloModal} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: 'var(--espacio-lg)', borderBottom: 'var(--borde-fino)' }}>
-          <h2 className="texto-display" style={{ fontSize: '18px', margin: 0 }}>
-            {cliente ? `Registrar abono` : 'Nuevo cliente'}
-          </h2>
-          {cliente && <p style={{ fontSize: '13px', color: 'var(--gris-concreto)', margin: '4px 0 0' }}>{cliente.nombre}</p>}
+          <h2 className="texto-display" style={{ fontSize: '18px', margin: 0 }}>Registrar abono</h2>
+          <p style={{ fontSize: '13px', color: 'var(--gris-concreto)', margin: '4px 0 0' }}>{cliente.nombre}</p>
         </div>
 
         <div style={{ padding: 'var(--espacio-lg)' }}>
-          {!cliente ? (
+          {monedasConDeuda.length > 1 && (
             <>
-              <label style={estiloLabel}>Nombre</label>
-              <input value={nombreNuevo} onChange={(e) => setNombreNuevo(e.target.value)} style={{ ...estiloInput, marginBottom: 'var(--espacio-md)' }} autoFocus />
-              <label style={estiloLabel}>Teléfono (opcional)</label>
-              <input value={telefonoNuevo} onChange={(e) => setTelefonoNuevo(e.target.value)} style={estiloInput} />
-            </>
-          ) : (
-            <>
-              <div style={{ display: 'flex', gap: 'var(--espacio-sm)', marginBottom: 'var(--espacio-md)' }}>
-                <div style={{ flex: '0 0 90px' }}>
-                  <label style={estiloLabel}>Moneda</label>
-                  <select value={form.moneda} onChange={(e) => setForm((p) => ({ ...p, moneda: e.target.value }))} style={estiloInput}>
-                    {MONEDAS.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={estiloLabel}>Monto</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={form.monto}
-                    onChange={(e) => setForm((p) => ({ ...p, monto: e.target.value }))}
-                    autoFocus
-                    style={estiloInput}
-                  />
-                </div>
-              </div>
-              <label style={estiloLabel}>Método de pago</label>
-              <select value={form.metodo_pago_id} onChange={(e) => setForm((p) => ({ ...p, metodo_pago_id: e.target.value }))} style={estiloInput}>
-                {metodosPago.map((m) => (
-                  <option key={m.id} value={m.id}>{m.nombre}</option>
+              <label style={estiloLabel}>¿Qué deuda va a pagar?</label>
+              <div style={{ display: 'flex', gap: '6px', marginBottom: 'var(--espacio-md)' }}>
+                {monedasConDeuda.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, moneda: m }))}
+                    style={{
+                      flex: 1, padding: '8px', border: 'var(--borde-fino)',
+                      borderColor: form.moneda === m ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
+                      backgroundColor: form.moneda === m ? 'var(--rojo-cerveloza)' : 'transparent',
+                      color: form.moneda === m ? 'var(--blanco-hueso)' : 'var(--grafito)',
+                      fontFamily: 'var(--fuente-base)', fontSize: '13px', cursor: 'pointer', borderRadius: '2px'
+                    }}
+                  >
+                    {etiquetaMoneda(m)}
+                  </button>
                 ))}
-              </select>
+              </div>
             </>
           )}
+
+          <p style={{ fontSize: '13px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-md)' }}>
+            Debe: <strong className="cifra-dinero">{saldoActual.toFixed(2)} {etiquetaMoneda(form.moneda)}</strong>
+          </p>
+
+          <label style={estiloLabel}>Monto a abonar ({etiquetaMoneda(form.moneda)})</label>
+          <input
+            type="number"
+            step="0.01"
+            value={form.monto}
+            onChange={(e) => setForm((p) => ({ ...p, monto: e.target.value }))}
+            autoFocus
+            style={{ ...estiloInput, marginBottom: 'var(--espacio-md)' }}
+          />
+          <button
+            type="button"
+            onClick={() => setForm((p) => ({ ...p, monto: saldoActual.toFixed(2) }))}
+            style={{ ...estiloBotonTexto, marginBottom: 'var(--espacio-md)' }}
+          >
+            Pagar todo ({saldoActual.toFixed(2)} {etiquetaMoneda(form.moneda)})
+          </button>
+
+          <label style={estiloLabel}>Método de pago</label>
+          <select value={form.metodo_pago_id} onChange={(e) => setForm((p) => ({ ...p, metodo_pago_id: e.target.value }))} style={estiloInput}>
+            {metodosPago.map((m) => (
+              <option key={m.id} value={m.id}>{m.nombre}</option>
+            ))}
+          </select>
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--espacio-sm)', padding: 'var(--espacio-lg)', borderTop: 'var(--borde-fino)' }}>
           <button type="button" onClick={onCerrar} style={estiloBotonSecundario}>Cancelar</button>
           <button type="submit" disabled={guardando} style={{ ...estiloBotonPrimario, flex: 1 }}>
-            {guardando ? 'Guardando...' : cliente ? 'Registrar abono' : 'Crear cliente'}
+            {guardando ? 'Guardando...' : 'Registrar abono'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ModalNuevoCliente({ onCerrar, onGuardado }) {
+  const [nombre, setNombre] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [guardando, setGuardando] = useState(false);
+
+  async function manejarSubmit(e) {
+    e.preventDefault();
+    if (!nombre.trim()) {
+      toast.error('Ingresa el nombre del cliente');
+      return;
+    }
+    setGuardando(true);
+    try {
+      await api.post('/clientes', { nombre: nombre.trim(), telefono: telefono || null });
+      toast.success('Cliente creado');
+      onGuardado();
+    } catch (error) {
+      toast.error('No se pudo crear el cliente');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div style={estiloOverlay} onClick={onCerrar}>
+      <form onSubmit={manejarSubmit} style={estiloModal} onClick={(e) => e.stopPropagation()}>
+        <div style={{ padding: 'var(--espacio-lg)', borderBottom: 'var(--borde-fino)' }}>
+          <h2 className="texto-display" style={{ fontSize: '18px', margin: 0 }}>Nuevo cliente</h2>
+        </div>
+        <div style={{ padding: 'var(--espacio-lg)' }}>
+          <label style={estiloLabel}>Nombre</label>
+          <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ ...estiloInput, marginBottom: 'var(--espacio-md)' }} autoFocus />
+          <label style={estiloLabel}>Teléfono (opcional)</label>
+          <input value={telefono} onChange={(e) => setTelefono(e.target.value)} style={estiloInput} />
+        </div>
+        <div style={{ display: 'flex', gap: 'var(--espacio-sm)', padding: 'var(--espacio-lg)', borderTop: 'var(--borde-fino)' }}>
+          <button type="button" onClick={onCerrar} style={estiloBotonSecundario}>Cancelar</button>
+          <button type="submit" disabled={guardando} style={{ ...estiloBotonPrimario, flex: 1 }}>
+            {guardando ? 'Guardando...' : 'Crear cliente'}
           </button>
         </div>
       </form>
@@ -366,87 +429,46 @@ function ModalAbono({ cliente, onCerrar, onGuardado }) {
 }
 
 const estiloOverlay = {
-  position: 'fixed',
-  inset: 0,
-  backgroundColor: 'rgba(26, 26, 26, 0.6)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 25,
-  padding: 'var(--espacio-lg)'
+  position: 'fixed', inset: 0, backgroundColor: 'rgba(26, 26, 26, 0.6)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 25, padding: 'var(--espacio-lg)'
 };
 
 const estiloModal = {
-  width: '100%',
-  maxWidth: '400px',
-  backgroundColor: 'var(--blanco-hueso)',
-  borderTop: '5px solid var(--rojo-cerveloza)',
-  boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
-  maxHeight: '90vh',
-  overflowY: 'auto'
+  width: '100%', maxWidth: '400px', backgroundColor: 'var(--blanco-hueso)',
+  borderTop: '5px solid var(--rojo-cerveloza)', boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
+  maxHeight: '90vh', overflowY: 'auto'
 };
 
 const estiloLabel = {
-  display: 'block',
-  fontSize: '14px',
-  color: 'var(--gris-concreto)',
-  marginBottom: 'var(--espacio-xs)'
+  display: 'block', fontSize: '14px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-xs)'
 };
 
 const estiloInput = {
-  width: '100%',
-  padding: '10px 12px',
-  border: 'var(--borde-fino)',
-  borderRadius: '2px',
-  fontFamily: 'var(--fuente-base)',
-  fontSize: '14px',
-  boxSizing: 'border-box'
+  width: '100%', padding: '10px 12px', border: 'var(--borde-fino)', borderRadius: '2px',
+  fontFamily: 'var(--fuente-base)', fontSize: '14px', boxSizing: 'border-box'
 };
 
 const estiloTh = {
-  textAlign: 'left',
-  padding: 'var(--espacio-sm)',
-  fontSize: '14px',
-  color: 'var(--gris-concreto)'
+  textAlign: 'left', padding: 'var(--espacio-sm)', fontSize: '14px', color: 'var(--gris-concreto)'
 };
 
 const estiloTd = {
-  padding: 'var(--espacio-sm)',
-  fontSize: '14px'
+  padding: 'var(--espacio-sm)', fontSize: '14px'
 };
 
 const estiloBotonPrimario = {
-  padding: '10px 16px',
-  backgroundColor: 'var(--rojo-cerveloza)',
-  color: 'var(--blanco-hueso)',
-  border: 'none',
-  borderRadius: '2px',
-  fontFamily: 'var(--fuente-base)',
-  fontWeight: 600,
-  fontSize: '14px',
-  cursor: 'pointer'
+  padding: '10px 16px', backgroundColor: 'var(--rojo-cerveloza)', color: 'var(--blanco-hueso)',
+  border: 'none', borderRadius: '2px', fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '14px', cursor: 'pointer'
 };
 
 const estiloBotonSecundario = {
-  padding: '10px 16px',
-  backgroundColor: 'transparent',
-  color: 'var(--grafito)',
-  border: 'var(--borde-fino)',
-  borderRadius: '2px',
-  fontFamily: 'var(--fuente-base)',
-  fontSize: '14px',
-  cursor: 'pointer'
+  padding: '10px 16px', backgroundColor: 'transparent', color: 'var(--grafito)',
+  border: 'var(--borde-fino)', borderRadius: '2px', fontFamily: 'var(--fuente-base)', fontSize: '14px', cursor: 'pointer'
 };
 
 const estiloBotonTexto = {
-  background: 'none',
-  border: 'none',
-  color: 'var(--grafito)',
-  fontFamily: 'var(--fuente-base)',
-  fontSize: '13px',
-  cursor: 'pointer',
-  marginLeft: 'var(--espacio-sm)',
-  textDecoration: 'underline'
+  background: 'none', border: 'none', color: 'var(--grafito)', fontFamily: 'var(--fuente-base)',
+  fontSize: '13px', cursor: 'pointer', marginLeft: 'var(--espacio-sm)', textDecoration: 'underline'
 };
 
 export default Clientes;

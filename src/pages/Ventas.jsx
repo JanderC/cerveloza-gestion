@@ -6,6 +6,10 @@ import ReciboImprimible from '../components/ReciboImprimible';
 
 const MONEDAS = ['USD', 'COP', 'VES'];
 
+function etiquetaMoneda(m) {
+  return m === 'VES' ? 'Bs' : m;
+}
+
 function Ventas() {
   const [productos, setProductos] = useState([]);
   const [tasa, setTasa] = useState(null);
@@ -23,7 +27,6 @@ function Ventas() {
   const [paginaVentas, setPaginaVentas] = useState(1);
   const VENTAS_POR_PAGINA = 5;
 
-  // Fiado
   const [sesionCajaId, setSesionCajaId] = useState(null);
   const [mostrarFiado, setMostrarFiado] = useState(false);
   const [busquedaCliente, setBusquedaCliente] = useState('');
@@ -31,7 +34,6 @@ function Ventas() {
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [creandoCliente, setCreandoCliente] = useState(false);
 
-  // Recibo
   const [ultimoRecibo, setUltimoRecibo] = useState(null);
 
   useEffect(() => {
@@ -94,7 +96,6 @@ function Ventas() {
     return montoUSD;
   }
 
-  // Precio exacto: 1) moneda base, 2) precio fijo propio, 3) cruce directo COP<->VES si hay precio fijo "hermano", 4) conversión desde base
   function precioUnitarioUSD(producto) {
     if (monedaVenta === producto.moneda_base) return Number(producto.precio_venta);
 
@@ -222,7 +223,6 @@ function Ventas() {
     }
   }
 
-  // ===== Fiado =====
   async function buscarClientesEnVivo(texto) {
     setBusquedaCliente(texto);
     if (!texto.trim()) {
@@ -282,8 +282,7 @@ function Ventas() {
           })),
         cliente_id: clienteSeleccionado?.id || null,
         sesion_caja_id: sesionCajaId,
-        moneda_venta: monedaVenta,
-        moneda_vuelto: monedaVenta
+        moneda_venta: monedaVenta
       });
 
       const datosRecibo = {
@@ -292,7 +291,7 @@ function Ventas() {
         cajero: JSON.parse(localStorage.getItem('cerveloza_usuario') || '{}').nombre || '',
         cliente: clienteSeleccionado?.nombre || null,
         esFiado: !!respuesta.data.es_fiado,
-        monedaVenta,
+        monedaVenta: etiquetaMoneda(monedaVenta),
         totalMonedaVenta: totalEnMonedaVenta,
         items: carrito.map((item) => ({
           nombre: item.producto.nombre,
@@ -304,19 +303,19 @@ function Ventas() {
           .filter((p) => p.monto && Number(p.monto) > 0)
           .map((p) => ({
             metodo: metodosPago.find((m) => m.id === Number(p.metodo_pago_id))?.nombre || 'Pago',
-            moneda: p.moneda,
+            moneda: etiquetaMoneda(p.moneda),
             monto: Number(p.monto)
           })),
         vuelto: respuesta.data.vuelto_monto
-          ? { moneda: respuesta.data.vuelto_moneda, monto: Number(respuesta.data.vuelto_monto) }
+          ? { moneda: etiquetaMoneda(respuesta.data.vuelto_moneda), monto: Number(respuesta.data.vuelto_monto) }
           : null
       };
       setUltimoRecibo(datosRecibo);
 
       if (respuesta.data.vuelto_usd > 0.05) {
-        toast.success(`Venta registrada. Vuelto: ${convertirDesdeUSD(respuesta.data.vuelto_usd, monedaVenta).toFixed(2)} ${monedaVenta}`);
+        toast.success(`Venta registrada. Vuelto: ${convertirDesdeUSD(respuesta.data.vuelto_usd, monedaVenta).toFixed(2)} ${etiquetaMoneda(monedaVenta)}`);
       } else if (clienteSeleccionado) {
-        toast.success(`Venta registrada. Se fiaron ${convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} ${monedaVenta} a ${clienteSeleccionado.nombre}`);
+        toast.success(`Venta registrada. Se fiaron ${convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} ${etiquetaMoneda(monedaVenta)} a ${clienteSeleccionado.nombre}`);
       } else {
         toast.success('Venta registrada correctamente');
       }
@@ -400,7 +399,7 @@ function Ventas() {
                   borderRadius: '2px'
                 }}
               >
-                {m}
+                {etiquetaMoneda(m)}
               </button>
             ))}
           </div>
@@ -478,7 +477,7 @@ function Ventas() {
                       </p>
                     </div>
                     <span className="cifra-dinero" style={{ fontSize: '14px', fontWeight: 600 }}>
-                      {precioEnMonedaVenta(producto).toFixed(2)} {monedaVenta}
+                      {precioEnMonedaVenta(producto).toFixed(2)} {etiquetaMoneda(monedaVenta)}
                     </span>
                   </button>
                 ))}
@@ -497,7 +496,7 @@ function Ventas() {
                   <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
                     <th style={estiloTh}>Producto</th>
                     <th style={{ ...estiloTh, textAlign: 'center' }}>Cant.</th>
-                    <th style={{ ...estiloTh, textAlign: 'right' }}>Subtotal ({monedaVenta})</th>
+                    <th style={{ ...estiloTh, textAlign: 'right' }}>Subtotal ({etiquetaMoneda(monedaVenta)})</th>
                     <th style={estiloTh}></th>
                   </tr>
                 </thead>
@@ -545,7 +544,7 @@ function Ventas() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--espacio-sm)' }}>
-              <span style={{ fontSize: '14px', color: 'var(--gris-concreto)' }}>Total ({monedaVenta})</span>
+              <span style={{ fontSize: '14px', color: 'var(--gris-concreto)' }}>Total ({etiquetaMoneda(monedaVenta)})</span>
               <span className="texto-display cifra-dinero" style={{ fontSize: '28px' }}>
                 {totalEnMonedaVenta.toFixed(2)}
               </span>
@@ -565,7 +564,7 @@ function Ventas() {
                   <span key={m} style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
                     ≈ <span className="cifra-dinero" style={{ color: 'var(--grafito)', fontWeight: 600 }}>
                       {convertirDesdeUSD(totalUSD, m).toFixed(2)}
-                    </span> {m}
+                    </span> {etiquetaMoneda(m)}
                   </span>
                 ))}
               </div>
@@ -579,7 +578,7 @@ function Ventas() {
                 {ventasHoy.length} venta{ventasHoy.length !== 1 ? 's' : ''}
                 {totalesHoyPorMoneda.usd > 0 && ` · $${totalesHoyPorMoneda.usd.toFixed(2)} USD`}
                 {totalesHoyPorMoneda.cop > 0 && ` · ${totalesHoyPorMoneda.cop.toFixed(2)} COP`}
-                {totalesHoyPorMoneda.ves > 0 && ` · ${totalesHoyPorMoneda.ves.toFixed(2)} VES`}
+                {totalesHoyPorMoneda.ves > 0 && ` · ${totalesHoyPorMoneda.ves.toFixed(2)} Bs`}
               </span>
             </div>
 
@@ -614,7 +613,7 @@ function Ventas() {
                         <th style={estiloTh}>Vendedor</th>
                         <th style={{ ...estiloTh, textAlign: 'right' }}>USD</th>
                         <th style={{ ...estiloTh, textAlign: 'right' }}>COP</th>
-                        <th style={{ ...estiloTh, textAlign: 'right' }}>VES</th>
+                        <th style={{ ...estiloTh, textAlign: 'right' }}>Bs</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -682,7 +681,7 @@ function Ventas() {
 
           {tasa && (
             <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-md)' }}>
-              Tasa vigente: 1 USD = {Number(tasa.usd_ves).toFixed(2)} VES · {Number(tasa.usd_cop).toFixed(2)} COP
+              Tasa vigente: 1 USD = {Number(tasa.usd_ves).toFixed(2)} Bs · {Number(tasa.usd_cop).toFixed(2)} COP
             </p>
           )}
 
@@ -700,7 +699,7 @@ function Ventas() {
                     style={{ ...estiloInput, flex: '0 0 65px' }}
                   >
                     {MONEDAS.map((m) => (
-                      <option key={m} value={m}>{m}</option>
+                      <option key={m} value={m}>{etiquetaMoneda(m)}</option>
                     ))}
                   </select>
                   <select
@@ -757,7 +756,7 @@ function Ventas() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--espacio-sm)' }}>
               <span style={{ fontSize: '14px', color: 'var(--gris-concreto)', fontWeight: 600 }}>Cuenta a pagar</span>
               <span className="texto-display cifra-dinero" style={{ fontSize: '22px' }}>
-                {totalEnMonedaVenta.toFixed(2)} {monedaVenta}
+                {totalEnMonedaVenta.toFixed(2)} {etiquetaMoneda(monedaVenta)}
               </span>
             </div>
 
@@ -773,7 +772,7 @@ function Ventas() {
                       {metodosPago.find((m) => m.id === Number(p.metodo_pago_id))?.nombre || 'Pago'}
                     </span>
                     <span className="texto-display cifra-dinero" style={{ fontSize: '17px' }}>
-                      {Number(p.monto).toFixed(2)} {p.moneda}
+                      {Number(p.monto).toFixed(2)} {etiquetaMoneda(p.moneda)}
                     </span>
                   </div>
                 ))}
@@ -795,7 +794,7 @@ function Ventas() {
               >
                 <span style={{ fontSize: '14px', color: 'var(--rojo-cerveloza)', fontWeight: 700 }}>Falta por cobrar</span>
                 <span className="texto-display cifra-dinero" style={{ fontSize: '20px', color: 'var(--rojo-cerveloza)' }}>
-                  {convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} {monedaVenta}
+                  {convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} {etiquetaMoneda(monedaVenta)}
                 </span>
               </div>
             )}
@@ -812,7 +811,7 @@ function Ventas() {
                 }}
               >
                 <span style={{ fontSize: '13px', color: 'var(--grafito)' }}>
-                  Fiando <strong>{convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} {monedaVenta}</strong> a:
+                  Fiando <strong>{convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} {etiquetaMoneda(monedaVenta)}</strong> a:
                   <br />
                   <span className="texto-display" style={{ fontSize: '15px', color: 'var(--rojo-cerveloza)' }}>{clienteSeleccionado.nombre}</span>
                 </span>
@@ -822,7 +821,6 @@ function Ventas() {
               </div>
             )}
 
-            {/* Vuelto: solo visual, siempre visible cuando corresponde, sin selector ni panel aparte */}
             {hayVuelto && (
               <div
                 style={{
@@ -836,7 +834,7 @@ function Ventas() {
               >
                 <span style={{ fontSize: '14px', color: 'var(--rojo-cerveloza)', fontWeight: 700 }}>Vuelto a entregar</span>
                 <span className="texto-display cifra-dinero" style={{ fontSize: '20px', color: 'var(--rojo-cerveloza)' }}>
-                  {convertirDesdeUSD(montoExcedenteUSD, monedaVenta).toFixed(2)} {monedaVenta}
+                  {convertirDesdeUSD(montoExcedenteUSD, monedaVenta).toFixed(2)} {etiquetaMoneda(monedaVenta)}
                 </span>
               </div>
             )}
@@ -939,20 +937,18 @@ function Ventas() {
               <p style={{ fontSize: '13px', color: 'var(--grafito)', marginBottom: '4px' }}>
                 Cliente: <strong>{ventaSeleccionada.cliente.nombre}</strong>
                 {ventaSeleccionada.fiado && (
-                  <span style={{ color: 'var(--rojo-cerveloza)' }}> · Saldo pendiente: ${Number(ventaSeleccionada.fiado.saldo_pendiente_usd).toFixed(2)} USD</span>
+                  <span style={{ color: 'var(--rojo-cerveloza)' }}>
+                    {' '}· Saldo pendiente: {Number(ventaSeleccionada.fiado.saldo_pendiente_original).toFixed(2)} {etiquetaMoneda(ventaSeleccionada.fiado.moneda)}
+                  </span>
                 )}
               </p>
             )}
 
-            <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-md)' }}>
-              Total: ${Number(ventaSeleccionada.venta.total_usd).toFixed(2)} USD
-            </p>
-
-            <p style={{ fontSize: '12px', fontWeight: 600, marginBottom: 'var(--espacio-xs)' }}>Productos</p>
+            <p style={{ fontSize: '12px', fontWeight: 600, marginBottom: 'var(--espacio-xs)', marginTop: 'var(--espacio-md)' }}>Productos</p>
             {ventaSeleccionada.detalles.map((d) => (
               <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
                 <span>{d.cantidad}x {d.nombre}</span>
-                <span className="cifra-dinero">${Number(d.subtotal_usd).toFixed(2)}</span>
+                <span className="cifra-dinero">{Number(d.subtotal_original).toFixed(2)} {etiquetaMoneda(d.moneda_original)}</span>
               </div>
             ))}
 
@@ -962,8 +958,8 @@ function Ventas() {
             {ventaSeleccionada.pagos.map((p) => (
               <div key={p.id} style={{ borderTop: 'var(--borde-fino)', padding: '6px 0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                  <span>{p.metodo_nombre} ({p.moneda})</span>
-                  <span className="cifra-dinero">{Number(p.monto).toFixed(2)} {p.moneda}</span>
+                  <span>{p.metodo_nombre} ({etiquetaMoneda(p.moneda)})</span>
+                  <span className="cifra-dinero">{Number(p.monto).toFixed(2)} {etiquetaMoneda(p.moneda)}</span>
                 </div>
                 {p.referencia && (
                   <p style={{ fontSize: '11px', color: 'var(--gris-concreto)', margin: '2px 0 0' }}>
@@ -975,7 +971,7 @@ function Ventas() {
 
             {ventaSeleccionada.venta.vuelto_monto > 0 && (
               <p style={{ fontSize: '13px', color: 'var(--gris-concreto)', marginTop: 'var(--espacio-sm)', borderTop: 'var(--borde-fino)', paddingTop: 'var(--espacio-sm)' }}>
-                Vuelto entregado: <strong>{Number(ventaSeleccionada.venta.vuelto_monto).toFixed(2)} {ventaSeleccionada.venta.vuelto_moneda}</strong>
+                Vuelto entregado: <strong>{Number(ventaSeleccionada.venta.vuelto_monto).toFixed(2)} {etiquetaMoneda(ventaSeleccionada.venta.vuelto_moneda)}</strong>
               </p>
             )}
 

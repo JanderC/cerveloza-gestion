@@ -4,9 +4,14 @@ import api from '../api/axios';
 
 const MONEDAS = ['USD', 'COP', 'VES'];
 
+function etiquetaMoneda(m) {
+  return m === 'VES' ? 'Bs' : m;
+}
+
 function Caja() {
   const [sesion, setSesion] = useState(null);
   const [resumen, setResumen] = useState(null);
+  const [movimientosDia, setMovimientosDia] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [mostrarModalMovimiento, setMostrarModalMovimiento] = useState(false);
@@ -24,10 +29,15 @@ function Caja() {
       setSesion(respSesion.data);
 
       if (respSesion.data) {
-        const respResumen = await api.get(`/caja/${respSesion.data.id}/resumen`);
+        const [respResumen, respMovimientos] = await Promise.all([
+          api.get(`/caja/${respSesion.data.id}/resumen`),
+          api.get(`/caja/${respSesion.data.id}/movimientos-dia`)
+        ]);
         setResumen(respResumen.data);
+        setMovimientosDia(respMovimientos.data);
       } else {
         setResumen(null);
+        setMovimientosDia([]);
       }
 
       const respHistorial = await api.get('/caja/historial');
@@ -52,9 +62,7 @@ function Caja() {
 
       {cargando && <p style={{ color: 'var(--gris-concreto)' }}>Cargando...</p>}
 
-      {!cargando && !sesion && (
-        <FormularioAbrirCaja onAbierta={cargarTodo} />
-      )}
+      {!cargando && !sesion && <FormularioAbrirCaja onAbierta={cargarTodo} />}
 
       {!cargando && sesion && resumen && (
         <>
@@ -85,7 +93,7 @@ function Caja() {
                 return (
                   <div key={m} style={{ backgroundColor: 'var(--blanco-hueso)', padding: 'var(--espacio-md)', border: 'var(--borde-fino)' }}>
                     <span style={{ fontSize: '12px', color: 'var(--gris-concreto)', display: 'block', marginBottom: '4px' }}>
-                      Efectivo esperado ({m})
+                      Efectivo esperado ({etiquetaMoneda(m)})
                     </span>
                     <span className="texto-display cifra-dinero" style={{ fontSize: '22px', display: 'block' }}>
                       {esperado.toFixed(2)}
@@ -102,7 +110,6 @@ function Caja() {
               })}
             </div>
 
-            {/* Desglose por método de pago dentro de cada moneda */}
             {resumen.pagos_por_metodo && resumen.pagos_por_metodo.length > 0 && (
               <div style={{ marginTop: 'var(--espacio-md)', borderTop: 'var(--borde-fino)', paddingTop: 'var(--espacio-md)' }}>
                 <span style={{ fontSize: '12px', color: 'var(--gris-concreto)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>
@@ -113,7 +120,7 @@ function Caja() {
                   if (filas.length === 0) return null;
                   return (
                     <div key={m} style={{ marginBottom: '6px' }}>
-                      <strong style={{ fontSize: '13px' }}>{m}:</strong>{' '}
+                      <strong style={{ fontSize: '13px' }}>{etiquetaMoneda(m)}:</strong>{' '}
                       {filas.map((f, i) => (
                         <span key={f.metodo} style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
                           {f.metodo} <span className="cifra-dinero" style={{ color: 'var(--grafito)' }}>{Number(f.total).toFixed(2)}</span>
@@ -128,7 +135,7 @@ function Caja() {
 
             {Number(resumen.fiado_otorgado_usd) > 0 && (
               <p style={{ fontSize: '13px', color: 'var(--gris-concreto)', marginTop: 'var(--espacio-md)' }}>
-                Fiado otorgado en este turno: <strong>${Number(resumen.fiado_otorgado_usd).toFixed(2)} USD</strong> (no afecta el efectivo)
+                Fiado otorgado en este turno (informativo, no afecta el efectivo)
               </p>
             )}
           </div>
@@ -140,6 +147,58 @@ function Caja() {
             <button onClick={() => setMostrarModalCierre(true)} style={estiloBotonPrimario}>
               Cerrar caja
             </button>
+          </div>
+
+          {/* Movimientos del día: línea de tiempo de todo lo que pasó en el turno */}
+          <div style={{ marginBottom: 'var(--espacio-xl)' }}>
+            <h2 className="texto-display" style={{ fontSize: '16px', marginBottom: 'var(--espacio-sm)' }}>
+              Movimientos de hoy
+            </h2>
+            {movimientosDia.length === 0 && (
+              <p style={{ color: 'var(--gris-concreto)', fontSize: '14px' }}>Aún no hay movimientos en este turno.</p>
+            )}
+            {movimientosDia.map((ev, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: 'var(--borde-fino)' }}>
+                <div>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                      color:
+                        ev.tipo === 'venta' ? 'var(--grafito)' :
+                        ev.tipo === 'ingreso' || ev.tipo === 'abono' ? '#2e7d32' : 'var(--rojo-cerveloza)',
+                      border: '1px solid currentColor',
+                      borderRadius: '2px',
+                      padding: '1px 6px',
+                      marginRight: '8px'
+                    }}
+                  >
+                    {ev.tipo}
+                  </span>
+                  <span style={{ fontSize: '14px' }}>{ev.detalle}</span>
+                  <div style={{ fontSize: '11px', color: 'var(--gris-concreto)' }}>
+                    {new Date(ev.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  {ev.tipo === 'venta' ? (
+                    <>
+                      {ev.usd > 0 && <div className="cifra-dinero" style={{ fontSize: '13px' }}>{ev.usd.toFixed(2)} USD</div>}
+                      {ev.cop > 0 && <div className="cifra-dinero" style={{ fontSize: '13px' }}>{ev.cop.toFixed(2)} COP</div>}
+                      {ev.ves > 0 && <div className="cifra-dinero" style={{ fontSize: '13px' }}>{ev.ves.toFixed(2)} Bs</div>}
+                    </>
+                  ) : (
+                    <span
+                      className="cifra-dinero"
+                      style={{ fontSize: '14px', fontWeight: 600, color: ev.tipo === 'egreso' ? 'var(--rojo-cerveloza)' : '#2e7d32' }}
+                    >
+                      {ev.tipo === 'egreso' ? '−' : '+'}{ev.monto.toFixed(2)} {etiquetaMoneda(ev.moneda)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </>
       )}
@@ -160,7 +219,7 @@ function Caja() {
                   <th style={estiloTh}>Cajero</th>
                   <th style={{ ...estiloTh, textAlign: 'right' }}>Dif. USD</th>
                   <th style={{ ...estiloTh, textAlign: 'right' }}>Dif. COP</th>
-                  <th style={{ ...estiloTh, textAlign: 'right' }}>Dif. VES</th>
+                  <th style={{ ...estiloTh, textAlign: 'right' }}>Dif. Bs</th>
                 </tr>
               </thead>
               <tbody>
@@ -239,21 +298,15 @@ function FormularioAbrirCaja({ onAbierta }) {
   }
 
   return (
-    <form
-      onSubmit={manejarSubmit}
-      className="superficie"
-      style={{ padding: 'var(--espacio-lg)', maxWidth: '420px' }}
-    >
-      <h2 className="texto-display" style={{ fontSize: '18px', marginBottom: '4px' }}>
-        Abrir caja
-      </h2>
+    <form onSubmit={manejarSubmit} className="superficie" style={{ padding: 'var(--espacio-lg)', maxWidth: '420px' }}>
+      <h2 className="texto-display" style={{ fontSize: '18px', marginBottom: '4px' }}>Abrir caja</h2>
       <p style={{ fontSize: '14px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-lg)' }}>
         Ingresa el fondo inicial (dinero de cambio) con el que empiezas el turno, en cada moneda que uses.
       </p>
 
       <CampoMonto etiqueta="Fondo inicial USD" valor={fondos.fondo_inicial_usd} onCambiar={(v) => setFondos((p) => ({ ...p, fondo_inicial_usd: v }))} />
       <CampoMonto etiqueta="Fondo inicial COP" valor={fondos.fondo_inicial_cop} onCambiar={(v) => setFondos((p) => ({ ...p, fondo_inicial_cop: v }))} />
-      <CampoMonto etiqueta="Fondo inicial VES" valor={fondos.fondo_inicial_ves} onCambiar={(v) => setFondos((p) => ({ ...p, fondo_inicial_ves: v }))} />
+      <CampoMonto etiqueta="Fondo inicial Bs" valor={fondos.fondo_inicial_ves} onCambiar={(v) => setFondos((p) => ({ ...p, fondo_inicial_ves: v }))} />
 
       <button type="submit" disabled={guardando} style={{ ...estiloBotonPrimario, width: '100%' }}>
         {guardando ? 'Abriendo...' : 'Abrir caja'}
@@ -272,7 +325,6 @@ function ModalMovimiento({ sesionId, onCerrar, onGuardado }) {
       toast.error('Completa el concepto y el monto');
       return;
     }
-
     setGuardando(true);
     try {
       await api.post('/caja/movimiento', {
@@ -323,7 +375,7 @@ function ModalMovimiento({ sesionId, onCerrar, onGuardado }) {
               <label style={estiloLabel}>Moneda</label>
               <select value={form.moneda} onChange={(e) => setForm((p) => ({ ...p, moneda: e.target.value }))} style={estiloInput}>
                 {MONEDAS.map((m) => (
-                  <option key={m} value={m}>{m}</option>
+                  <option key={m} value={m}>{etiquetaMoneda(m)}</option>
                 ))}
               </select>
             </div>
@@ -394,7 +446,7 @@ function ModalCierre({ sesion, onCerrar, onGuardado }) {
         <div style={{ padding: 'var(--espacio-lg)' }}>
           <CampoMonto etiqueta="Conteo final USD" valor={conteo.conteo_final_usd} onCambiar={(v) => setConteo((p) => ({ ...p, conteo_final_usd: v }))} />
           <CampoMonto etiqueta="Conteo final COP" valor={conteo.conteo_final_cop} onCambiar={(v) => setConteo((p) => ({ ...p, conteo_final_cop: v }))} />
-          <CampoMonto etiqueta="Conteo final VES" valor={conteo.conteo_final_ves} onCambiar={(v) => setConteo((p) => ({ ...p, conteo_final_ves: v }))} />
+          <CampoMonto etiqueta="Conteo final Bs" valor={conteo.conteo_final_ves} onCambiar={(v) => setConteo((p) => ({ ...p, conteo_final_ves: v }))} />
 
           <label style={estiloLabel}>Notas (opcional)</label>
           <textarea
@@ -421,89 +473,47 @@ function CampoMonto({ etiqueta, valor, onCambiar }) {
   return (
     <div style={{ marginBottom: 'var(--espacio-md)' }}>
       <label style={estiloLabel}>{etiqueta}</label>
-      <input
-        type="number"
-        step="0.01"
-        value={valor}
-        onChange={(e) => onCambiar(e.target.value)}
-        placeholder="0.00"
-        style={estiloInput}
-      />
+      <input type="number" step="0.01" value={valor} onChange={(e) => onCambiar(e.target.value)} placeholder="0.00" style={estiloInput} />
     </div>
   );
 }
 
 const estiloOverlay = {
-  position: 'fixed',
-  inset: 0,
-  backgroundColor: 'rgba(26, 26, 26, 0.6)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 25,
-  padding: 'var(--espacio-lg)'
+  position: 'fixed', inset: 0, backgroundColor: 'rgba(26, 26, 26, 0.6)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 25, padding: 'var(--espacio-lg)'
 };
 
 const estiloModal = {
-  width: '100%',
-  maxWidth: '420px',
-  backgroundColor: 'var(--blanco-hueso)',
-  borderTop: '5px solid var(--rojo-cerveloza)',
-  boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
-  maxHeight: '90vh',
-  overflowY: 'auto'
+  width: '100%', maxWidth: '420px', backgroundColor: 'var(--blanco-hueso)',
+  borderTop: '5px solid var(--rojo-cerveloza)', boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
+  maxHeight: '90vh', overflowY: 'auto'
 };
 
 const estiloLabel = {
-  display: 'block',
-  fontSize: '14px',
-  color: 'var(--gris-concreto)',
-  marginBottom: 'var(--espacio-xs)'
+  display: 'block', fontSize: '14px', color: 'var(--gris-concreto)', marginBottom: 'var(--espacio-xs)'
 };
 
 const estiloInput = {
-  width: '100%',
-  padding: '10px 12px',
-  border: 'var(--borde-fino)',
-  borderRadius: '2px',
-  fontFamily: 'var(--fuente-base)',
-  fontSize: '14px',
-  boxSizing: 'border-box'
+  width: '100%', padding: '10px 12px', border: 'var(--borde-fino)', borderRadius: '2px',
+  fontFamily: 'var(--fuente-base)', fontSize: '14px', boxSizing: 'border-box'
 };
 
 const estiloTh = {
-  textAlign: 'left',
-  padding: 'var(--espacio-sm)',
-  fontSize: '14px',
-  color: 'var(--gris-concreto)'
+  textAlign: 'left', padding: 'var(--espacio-sm)', fontSize: '14px', color: 'var(--gris-concreto)'
 };
 
 const estiloTd = {
-  padding: 'var(--espacio-sm)',
-  fontSize: '14px'
+  padding: 'var(--espacio-sm)', fontSize: '14px'
 };
 
 const estiloBotonPrimario = {
-  padding: '10px 16px',
-  backgroundColor: 'var(--rojo-cerveloza)',
-  color: 'var(--blanco-hueso)',
-  border: 'none',
-  borderRadius: '2px',
-  fontFamily: 'var(--fuente-base)',
-  fontWeight: 600,
-  fontSize: '14px',
-  cursor: 'pointer'
+  padding: '10px 16px', backgroundColor: 'var(--rojo-cerveloza)', color: 'var(--blanco-hueso)',
+  border: 'none', borderRadius: '2px', fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '14px', cursor: 'pointer'
 };
 
 const estiloBotonSecundario = {
-  padding: '10px 16px',
-  backgroundColor: 'transparent',
-  color: 'var(--grafito)',
-  border: 'var(--borde-fino)',
-  borderRadius: '2px',
-  fontFamily: 'var(--fuente-base)',
-  fontSize: '14px',
-  cursor: 'pointer'
+  padding: '10px 16px', backgroundColor: 'transparent', color: 'var(--grafito)',
+  border: 'var(--borde-fino)', borderRadius: '2px', fontFamily: 'var(--fuente-base)', fontSize: '14px', cursor: 'pointer'
 };
 
 export default Caja;
