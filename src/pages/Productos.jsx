@@ -5,9 +5,14 @@ import api from '../api/axios';
 const MONEDAS = ['USD', 'COP', 'VES'];
 const POR_PAGINA = 8;
 
+function etiquetaMoneda(m) {
+  return m === 'VES' ? 'Bs' : m;
+}
+
 function Productos() {
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
+  const [tasa, setTasa] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [productoEditando, setProductoEditando] = useState(null);
@@ -19,6 +24,7 @@ function Productos() {
   useEffect(() => {
     cargarProductos();
     cargarCategorias();
+    cargarTasa();
   }, []);
 
   async function cargarProductos() {
@@ -41,6 +47,47 @@ function Productos() {
       // silencioso
     }
   }
+
+  async function cargarTasa() {
+    try {
+      const respuesta = await api.get('/tasas/actual');
+      setTasa(respuesta.data);
+    } catch (error) {
+      // silencioso: si no hay tasa, la tarjeta de capital simplemente no se muestra
+    }
+  }
+
+  function convertirAUSD(monto, moneda) {
+    if (!tasa || !monto) return 0;
+    if (moneda === 'USD') return Number(monto);
+    if (moneda === 'COP') return Number(monto) / Number(tasa.usd_cop);
+    if (moneda === 'VES') {
+      const usdVesEfectivo = tasa.ves_cop_manual ? Number(tasa.usd_cop) / Number(tasa.ves_cop) : Number(tasa.usd_ves);
+      return Number(monto) / usdVesEfectivo;
+    }
+    return 0;
+  }
+
+  function convertirDesdeUSD(montoUSD, moneda) {
+    if (!tasa) return montoUSD;
+    if (moneda === 'USD') return montoUSD;
+    if (moneda === 'COP') return montoUSD * Number(tasa.usd_cop);
+    if (moneda === 'VES') {
+      const usdVesEfectivo = tasa.ves_cop_manual ? Number(tasa.usd_cop) / Number(tasa.ves_cop) : Number(tasa.usd_ves);
+      return montoUSD * usdVesEfectivo;
+    }
+    return montoUSD;
+  }
+
+  // Capital total invertido en inventario: precio de compra x stock de cada producto, normalizado a USD
+  const capitalTotalUSD = useMemo(() => {
+    if (!tasa) return 0;
+    return productos.reduce((acc, p) => {
+      const costoUnitarioUSD = convertirAUSD(p.precio_compra, p.moneda_base);
+      return acc + costoUnitarioUSD * Number(p.stock);
+    }, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productos, tasa]);
 
   function abrirNuevo() {
     setProductoEditando(null);
@@ -94,6 +141,40 @@ function Productos() {
           + Nuevo producto
         </button>
       </div>
+
+      {/* Tarjeta de capital total en inventario */}
+      {tasa && productos.length > 0 && (
+        <div
+          style={{
+            backgroundColor: 'var(--gris-humo)',
+            borderLeft: '4px solid var(--rojo-cerveloza)',
+            padding: 'var(--espacio-lg)',
+            marginBottom: 'var(--espacio-lg)',
+            display: 'flex',
+            gap: 'var(--espacio-xl)',
+            flexWrap: 'wrap'
+          }}
+        >
+          <div>
+            <span style={{ fontSize: '12px', color: 'var(--gris-concreto)', display: 'block', marginBottom: '4px' }}>
+              Capital total en inventario
+            </span>
+            <span className="texto-display cifra-dinero" style={{ fontSize: '13px', color: 'var(--gris-concreto)', display: 'block', marginBottom: '2px' }}>
+              (basado en el precio de compra de cada producto)
+            </span>
+          </div>
+          {MONEDAS.map((m) => (
+            <div key={m}>
+              <span style={{ fontSize: '12px', color: 'var(--gris-concreto)', display: 'block' }}>
+                {etiquetaMoneda(m)}
+              </span>
+              <span className="texto-display cifra-dinero" style={{ fontSize: '24px' }}>
+                {convertirDesdeUSD(capitalTotalUSD, m).toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 'var(--espacio-sm)', marginBottom: 'var(--espacio-lg)', flexWrap: 'wrap' }}>
         <input
@@ -195,7 +276,7 @@ function Productos() {
                     <td className="cifra-dinero" style={estiloTd}>
                       {Number(producto.precio_venta).toFixed(2)}
                     </td>
-                    <td style={estiloTd}>{producto.moneda_base}</td>
+                    <td style={estiloTd}>{etiquetaMoneda(producto.moneda_base)}</td>
                     <td className="cifra-dinero" style={estiloTd}>
                       {producto.porcentaje_ganancia != null ? `${Number(producto.porcentaje_ganancia).toFixed(1)}%` : '—'}
                     </td>
@@ -546,7 +627,7 @@ function FormularioProducto({ producto, onCerrar, onGuardado }) {
               <label style={estiloLabel}>Moneda base</label>
               <select value={form.moneda_base} onChange={(e) => actualizarCampo('moneda_base', e.target.value)} style={estiloInput}>
                 {MONEDAS.map((m) => (
-                  <option key={m} value={m}>{m}</option>
+                  <option key={m} value={m}>{etiquetaMoneda(m)}</option>
                 ))}
               </select>
             </div>
@@ -573,7 +654,7 @@ function FormularioProducto({ producto, onCerrar, onGuardado }) {
             .map((m) => (
               <CampoTexto
                 key={m}
-                etiqueta={`Precio fijo en ${m.toUpperCase()}`}
+                etiqueta={`Precio fijo en ${etiquetaMoneda(m.toUpperCase())}`}
                 tipo="number"
                 valor={form[`precio_manual_${m}`]}
                 onCambiar={(v) => actualizarCampo(`precio_manual_${m}`, v)}
