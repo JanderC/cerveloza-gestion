@@ -244,6 +244,19 @@ function Ventas() {
     setResultadosClientes([]);
   }
 
+  function pagarCompleto() {
+  const metodoDefault = pagos[0]?.metodo_pago_id || metodosPago.find((m) => !m.es_credito)?.id || '';
+  setPagos([
+    {
+      moneda: monedaVenta,
+      metodo_pago_id: metodoDefault,
+      monto: totalEnMonedaVenta.toFixed(2),
+      referencia: '',
+      autoCalculado: false
+    }
+  ]);
+}
+
   async function crearYElegirCliente() {
     if (!busquedaCliente.trim()) return;
     setCreandoCliente(true);
@@ -689,6 +702,21 @@ function Ventas() {
             const metodoSeleccionado = metodosPago.find((m) => m.id === Number(pago.metodo_pago_id));
             const requiereReferencia =
               metodoSeleccionado && /transfer|nequi|pago.?m[oó]vil|zelle|binance/i.test(metodoSeleccionado.nombre);
+
+              <button
+                onClick={pagarCompleto}
+                disabled={carrito.length === 0}
+                style={{
+                  ...estiloBotonSecundario,
+                  width: '100%',
+                  marginBottom: 'var(--espacio-md)',
+                  borderColor: 'var(--rojo-cerveloza)',
+                  color: 'var(--rojo-cerveloza)',
+                  opacity: carrito.length === 0 ? 0.4 : 1
+                }}
+              >
+                Pago completo ({totalEnMonedaVenta.toFixed(2)} {etiquetaMoneda(monedaVenta)})
+              </button>
 
             return (
               <div key={index} style={{ marginBottom: 'var(--espacio-sm)' }}>
