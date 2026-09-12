@@ -698,175 +698,175 @@ function Ventas() {
             </p>
           )}
 
-          {pagos.map((pago, index) => {
-            const metodoSeleccionado = metodosPago.find((m) => m.id === Number(pago.metodo_pago_id));
-            const requiereReferencia =
-              metodoSeleccionado && /transfer|nequi|pago.?m[oó]vil|zelle|binance/i.test(metodoSeleccionado.nombre);
+          <button
+  onClick={pagarCompleto}
+  disabled={carrito.length === 0}
+  style={{
+    ...estiloBotonSecundario,
+    width: '100%',
+    marginBottom: 'var(--espacio-md)',
+    borderColor: 'var(--rojo-cerveloza)',
+    color: 'var(--rojo-cerveloza)',
+    opacity: carrito.length === 0 ? 0.4 : 1
+  }}
+>
+  Pago completo ({totalEnMonedaVenta.toFixed(2)} {etiquetaMoneda(monedaVenta)})
+</button>
 
-              <button
-                onClick={pagarCompleto}
-                disabled={carrito.length === 0}
-                style={{
-                  ...estiloBotonSecundario,
-                  width: '100%',
-                  marginBottom: 'var(--espacio-md)',
-                  borderColor: 'var(--rojo-cerveloza)',
-                  color: 'var(--rojo-cerveloza)',
-                  opacity: carrito.length === 0 ? 0.4 : 1
-                }}
-              >
-                Pago completo ({totalEnMonedaVenta.toFixed(2)} {etiquetaMoneda(monedaVenta)})
-              </button>
+{pagos.map((pago, index) => {
+  const metodoSeleccionado = metodosPago.find((m) => m.id === Number(pago.metodo_pago_id));
+  const requiereReferencia =
+    metodoSeleccionado && /transfer|nequi|pago.?m[oó]vil|zelle|binance/i.test(metodoSeleccionado.nombre);
 
-            return (
-              <div key={index} style={{ marginBottom: 'var(--espacio-sm)' }}>
-                <div style={{ display: 'flex', gap: 'var(--espacio-xs)', alignItems: 'center' }}>
-                  <select
-                    value={pago.moneda}
-                    onChange={(e) => actualizarPago(index, 'moneda', e.target.value)}
-                    style={{ ...estiloInput, flex: '0 0 65px' }}
-                  >
-                    {MONEDAS.map((m) => (
-                      <option key={m} value={m}>{etiquetaMoneda(m)}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={pago.metodo_pago_id}
-                    onChange={(e) => actualizarPago(index, 'metodo_pago_id', e.target.value)}
-                    style={{ ...estiloInput, flex: 1 }}
-                  >
-                    {metodosPago.filter((m) => !m.es_credito).map((m) => (
-                      <option key={m.id} value={m.id}>{m.nombre}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="Monto"
-                    value={pago.monto}
-                    onChange={(e) => {
-                      const valor = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
-                      actualizarPago(index, 'monto', valor);
-                    }}
-                    style={{ ...estiloInput, flex: '0 0 100px', fontSize: '15px', fontWeight: 600 }}
-                  />
-                  {pagos.length > 1 && (
-                    <button onClick={() => quitarLineaPago(index)} style={estiloBotonIcono}>
-                      <FiTrash2 size={14} />
-                    </button>
-                  )}
-                </div>
-
-                {requiereReferencia && (
-                  <input
-                    placeholder="Banco / canal / referencia (ej: Bancolombia, ref. 1234)"
-                    value={pago.referencia || ''}
-                    onChange={(e) => actualizarPago(index, 'referencia', e.target.value)}
-                    style={{ ...estiloInput, width: '100%', marginTop: '4px', fontSize: '12px' }}
-                  />
-                )}
-              </div>
-            );
-          })}
-
-          <button onClick={agregarLineaPago} style={{ ...estiloBotonTexto, marginBottom: 'var(--espacio-lg)' }}>
-            + Agregar otra forma de pago
+  return (
+    <div key={index} style={{ marginBottom: 'var(--espacio-sm)' }}>
+      <div style={{ display: 'flex', gap: 'var(--espacio-xs)', alignItems: 'center' }}>
+        <select
+          value={pago.moneda}
+          onChange={(e) => actualizarPago(index, 'moneda', e.target.value)}
+          style={{ ...estiloInput, flex: '0 0 65px' }}
+        >
+          {MONEDAS.map((m) => (
+            <option key={m} value={m}>{etiquetaMoneda(m)}</option>
+          ))}
+        </select>
+        <select
+          value={pago.metodo_pago_id}
+          onChange={(e) => actualizarPago(index, 'metodo_pago_id', e.target.value)}
+          style={{ ...estiloInput, flex: 1 }}
+        >
+          {metodosPago.filter((m) => !m.es_credito).map((m) => (
+            <option key={m.id} value={m.id}>{m.nombre}</option>
+          ))}
+        </select>
+        <input
+          type="text"
+          inputMode="decimal"
+          placeholder="Monto"
+          value={pago.monto}
+          onChange={(e) => {
+            const valor = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+            actualizarPago(index, 'monto', valor);
+          }}
+          style={{ ...estiloInput, flex: '0 0 100px', fontSize: '15px', fontWeight: 600 }}
+        />
+        {pagos.length > 1 && (
+          <button onClick={() => quitarLineaPago(index)} style={estiloBotonIcono}>
+            <FiTrash2 size={14} />
           </button>
+        )}
+      </div>
 
-          <div
-            style={{
-              backgroundColor: 'var(--gris-humo)',
-              borderLeft: '4px solid var(--rojo-cerveloza)',
-              padding: 'var(--espacio-md)',
-              marginBottom: 'var(--espacio-md)'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--espacio-sm)' }}>
-              <span style={{ fontSize: '14px', color: 'var(--gris-concreto)', fontWeight: 600 }}>Cuenta a pagar</span>
-              <span className="texto-display cifra-dinero" style={{ fontSize: '22px' }}>
-                {totalEnMonedaVenta.toFixed(2)} {etiquetaMoneda(monedaVenta)}
-              </span>
-            </div>
+      {requiereReferencia && (
+        <input
+          placeholder="Banco / canal / referencia (ej: Bancolombia, ref. 1234)"
+          value={pago.referencia || ''}
+          onChange={(e) => actualizarPago(index, 'referencia', e.target.value)}
+          style={{ ...estiloInput, width: '100%', marginTop: '4px', fontSize: '12px' }}
+        />
+      )}
+    </div>
+  );
+})}
 
-            <div style={{ borderTop: 'var(--borde-fino)', paddingTop: 'var(--espacio-sm)' }}>
-              <span style={{ fontSize: '12px', color: 'var(--gris-concreto)', display: 'block', marginBottom: '6px' }}>
-                Recibido
-              </span>
-              {pagos
-                .filter((p) => p.monto && Number(p.monto) > 0)
-                .map((p, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '15px', color: 'var(--grafito)' }}>
-                      {metodosPago.find((m) => m.id === Number(p.metodo_pago_id))?.nombre || 'Pago'}
-                    </span>
-                    <span className="texto-display cifra-dinero" style={{ fontSize: '17px' }}>
-                      {Number(p.monto).toFixed(2)} {etiquetaMoneda(p.moneda)}
-                    </span>
-                  </div>
-                ))}
-              {pagos.filter((p) => p.monto && Number(p.monto) > 0).length === 0 && (
-                <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>Aún no has ingresado ningún monto.</span>
-              )}
-            </div>
+<button onClick={agregarLineaPago} style={{ ...estiloBotonTexto, marginBottom: 'var(--espacio-lg)' }}>
+  + Agregar otra forma de pago
+</button>
 
-            {hayFaltante && !clienteSeleccionado && (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  borderTop: '2px solid var(--rojo-cerveloza)',
-                  marginTop: 'var(--espacio-sm)',
-                  paddingTop: 'var(--espacio-sm)'
-                }}
-              >
-                <span style={{ fontSize: '14px', color: 'var(--rojo-cerveloza)', fontWeight: 700 }}>Falta por cobrar</span>
-                <span className="texto-display cifra-dinero" style={{ fontSize: '20px', color: 'var(--rojo-cerveloza)' }}>
-                  {convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} {etiquetaMoneda(monedaVenta)}
-                </span>
-              </div>
-            )}
+<div
+  style={{
+    backgroundColor: 'var(--gris-humo)',
+    borderLeft: '4px solid var(--rojo-cerveloza)',
+    padding: 'var(--espacio-md)',
+    marginBottom: 'var(--espacio-md)'
+  }}
+>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--espacio-sm)' }}>
+    <span style={{ fontSize: '14px', color: 'var(--gris-concreto)', fontWeight: 600 }}>Cuenta a pagar</span>
+    <span className="texto-display cifra-dinero" style={{ fontSize: '22px' }}>
+      {totalEnMonedaVenta.toFixed(2)} {etiquetaMoneda(monedaVenta)}
+    </span>
+  </div>
 
-            {clienteSeleccionado && (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  borderTop: '2px solid var(--rojo-cerveloza)',
-                  marginTop: 'var(--espacio-sm)',
-                  paddingTop: 'var(--espacio-sm)'
-                }}
-              >
-                <span style={{ fontSize: '13px', color: 'var(--grafito)' }}>
-                  Fiando <strong>{convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} {etiquetaMoneda(monedaVenta)}</strong> a:
-                  <br />
-                  <span className="texto-display" style={{ fontSize: '15px', color: 'var(--rojo-cerveloza)' }}>{clienteSeleccionado.nombre}</span>
-                </span>
-                <button onClick={() => setClienteSeleccionado(null)} style={estiloBotonIcono}>
-                  <FiTrash2 size={16} />
-                </button>
-              </div>
-            )}
+  <div style={{ borderTop: 'var(--borde-fino)', paddingTop: 'var(--espacio-sm)' }}>
+    <span style={{ fontSize: '12px', color: 'var(--gris-concreto)', display: 'block', marginBottom: '6px' }}>
+      Recibido
+    </span>
+    {pagos
+      .filter((p) => p.monto && Number(p.monto) > 0)
+      .map((p, i) => (
+        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+          <span style={{ fontSize: '15px', color: 'var(--grafito)' }}>
+            {metodosPago.find((m) => m.id === Number(p.metodo_pago_id))?.nombre || 'Pago'}
+          </span>
+          <span className="texto-display cifra-dinero" style={{ fontSize: '17px' }}>
+            {Number(p.monto).toFixed(2)} {etiquetaMoneda(p.moneda)}
+          </span>
+        </div>
+      ))}
+    {pagos.filter((p) => p.monto && Number(p.monto) > 0).length === 0 && (
+      <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>Aún no has ingresado ningún monto.</span>
+    )}
+  </div>
 
-            {hayVuelto && (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  borderTop: '2px solid var(--rojo-cerveloza)',
-                  marginTop: 'var(--espacio-sm)',
-                  paddingTop: 'var(--espacio-sm)'
-                }}
-              >
-                <span style={{ fontSize: '14px', color: 'var(--rojo-cerveloza)', fontWeight: 700 }}>Vuelto a entregar</span>
-                <span className="texto-display cifra-dinero" style={{ fontSize: '20px', color: 'var(--rojo-cerveloza)' }}>
-                  {convertirDesdeUSD(montoExcedenteUSD, monedaVenta).toFixed(2)} {etiquetaMoneda(monedaVenta)}
-                </span>
-              </div>
-            )}
-          </div>
+  {hayFaltante && !clienteSeleccionado && (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderTop: '2px solid var(--rojo-cerveloza)',
+        marginTop: 'var(--espacio-sm)',
+        paddingTop: 'var(--espacio-sm)'
+      }}
+    >
+      <span style={{ fontSize: '14px', color: 'var(--rojo-cerveloza)', fontWeight: 700 }}>Falta por cobrar</span>
+      <span className="texto-display cifra-dinero" style={{ fontSize: '20px', color: 'var(--rojo-cerveloza)' }}>
+        {convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} {etiquetaMoneda(monedaVenta)}
+      </span>
+    </div>
+  )}
+
+  {clienteSeleccionado && (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderTop: '2px solid var(--rojo-cerveloza)',
+        marginTop: 'var(--espacio-sm)',
+        paddingTop: 'var(--espacio-sm)'
+      }}
+    >
+      <span style={{ fontSize: '13px', color: 'var(--grafito)' }}>
+        Fiando <strong>{convertirDesdeUSD(faltanteUSD, monedaVenta).toFixed(2)} {etiquetaMoneda(monedaVenta)}</strong> a:
+        <br />
+        <span className="texto-display" style={{ fontSize: '15px', color: 'var(--rojo-cerveloza)' }}>{clienteSeleccionado.nombre}</span>
+      </span>
+      <button onClick={() => setClienteSeleccionado(null)} style={estiloBotonIcono}>
+        <FiTrash2 size={16} />
+      </button>
+    </div>
+  )}
+
+  {hayVuelto && (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderTop: '2px solid var(--rojo-cerveloza)',
+        marginTop: 'var(--espacio-sm)',
+        paddingTop: 'var(--espacio-sm)'
+      }}
+    >
+      <span style={{ fontSize: '14px', color: 'var(--rojo-cerveloza)', fontWeight: 700 }}>Vuelto a entregar</span>
+      <span className="texto-display cifra-dinero" style={{ fontSize: '20px', color: 'var(--rojo-cerveloza)' }}>
+        {convertirDesdeUSD(montoExcedenteUSD, monedaVenta).toFixed(2)} {etiquetaMoneda(monedaVenta)}
+      </span>
+    </div>
+  )}
+</div>
 
           {hayFaltante && !clienteSeleccionado && (
             <div style={{ marginBottom: 'var(--espacio-lg)' }}>
