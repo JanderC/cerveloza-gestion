@@ -407,6 +407,9 @@ function ModalCierre({ sesion, onCerrar, onGuardado }) {
   const [conteo, setConteo] = useState({ conteo_final_usd: '', conteo_final_cop: '', conteo_final_ves: '' });
   const [notas, setNotas] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [resultadoCierre, setResultadoCierre] = useState(null);
+  const [resumenFinal, setResumenFinal] = useState(null);
+  const [movimientosFinal, setMovimientosFinal] = useState([]);
 
   async function manejarSubmit(e) {
     e.preventDefault();
@@ -420,12 +423,16 @@ function ModalCierre({ sesion, onCerrar, onGuardado }) {
         conteo_final_ves: Number(conteo.conteo_final_ves) || 0,
         notas_cierre: notas.trim() || null
       });
-      toast.success('Caja cerrada correctamente');
-      const dif = Math.abs(Number(resultado.data.diferencia_usd)) + Math.abs(Number(resultado.data.diferencia_cop)) + Math.abs(Number(resultado.data.diferencia_ves));
-      if (dif > 0.5) {
-        toast.error('Hubo diferencias en el cuadre — revisa el historial');
-      }
-      onGuardado();
+
+      // Trae el desglose completo del turno que acaba de cerrar (funciona igual, ya cerrada o no)
+      const [respResumen, respMovimientos] = await Promise.all([
+        api.get(`/caja/${sesion.id}/resumen`),
+        api.get(`/caja/${sesion.id}/movimientos-dia`)
+      ]);
+
+      setResultadoCierre(resultado.data);
+      setResumenFinal(respResumen.data);
+      setMovimientosFinal(respMovimientos.data);
     } catch (error) {
       toast.error(error.response?.data?.message || 'No se pudo cerrar la caja');
     } finally {
@@ -433,6 +440,139 @@ function ModalCierre({ sesion, onCerrar, onGuardado }) {
     }
   }
 
+  function obtenerMonto(lista, moneda) {
+    const fila = lista?.find((f) => f.moneda === moneda);
+    return fila ? Number(fila.total) : 0;
+  }
+
+  // ===== Vista de resultado: reporte final del turno, después de cerrar =====
+  if (resultadoCierre) {
+    const totalVentasUSD = MONEDAS.reduce((acc, m) => acc + obtenerMonto(resumenFinal.ventas_efectivo, m), 0);
+
+    return (
+      <div style={estiloOverlay}>
+        <div style={{ ...estiloModal, maxWidth: '460px' }}>
+          <div style={{ padding: 'var(--espacio-lg)', borderBottom: 'var(--borde-fino)', textAlign: 'center' }}>
+            <h2 className="texto-display" style={{ fontSize: '20px', margin: 0 }}>Caja cerrada</h2>
+            <p style={{ fontSize: '13px', color: 'var(--gris-concreto)', margin: '4px 0 0' }}>
+              Turno de {sesion.usuario_nombre} · {new Date().toLocaleString()}
+            </p>
+          </div>
+
+          <div style={{ padding: 'var(--espacio-lg)', maxHeight: '65vh', overflowY: 'auto' }}>
+            {/* Cuadre por moneda */}
+            <p style={estiloTituloSeccion}>Cuadre por moneda</p>
+            {MONEDAS.map((m) => {
+              const esperado = Number(resultadoCierre[`esperado_final_${m.toLowerCase()}`]);
+              const contado = Number(resultadoCierre[`conteo_final_${m.toLowerCase()}`]);
+              const diferencia = Number(resultadoCierre[`diferencia_${m.toLowerCase()}`]);
+              if (esperado === 0 && contado === 0) return null;
+              return (
+                <div key={m} style={{ marginBottom: 'var(--espacio-sm)', paddingBottom: 'var(--espacio-sm)', borderBottom: 'var(--borde-fino)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                    <span style={{ color: 'var(--gris-concreto)' }}>Esperado ({etiquetaMoneda(m)})</span>
+                    <span className="cifra-dinero">{esperado.toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                    <span style={{ color: 'var(--gris-concreto)' }}>Contado ({etiquetaMoneda(m)})</span>
+                    <span className="cifra-dinero">{contado.toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 700 }}>
+                    <span style={{ color: colorDiferencia(diferencia) }}>Diferencia</span>
+                    <span className="cifra-dinero" style={{ color: colorDiferencia(diferencia) }}>{diferencia.toFixed(2)}</span>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Ventas por moneda */}
+            <p style={estiloTituloSeccion}>Ventas del turno (efectivo)</p>
+            {MONEDAS.map((m) => {
+              const monto = obtenerMonto(resumenFinal.ventas_efectivo, m);
+              if (monto === 0) return null;
+              return (
+                <div key={m} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '4px' }}>
+                  <span>{etiquetaMoneda(m)}</span>
+                  <span className="cifra-dinero" style={{ fontWeight: 600 }}>{monto.toFixed(2)}</span>
+                </div>
+              );
+            })}
+            {totalVentasUSD === 0 && (
+              <p style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>Sin ventas en efectivo este turno.</p>
+            )}
+
+            {/* Desglose por método de pago */}
+            {resumenFinal.pagos_por_metodo && resumenFinal.pagos_por_metodo.length > 0 && (
+              <>
+                <p style={estiloTituloSeccion}>Por método de pago</p>
+                {MONEDAS.map((m) => {
+                  const filas = resumenFinal.pagos_por_metodo.filter((p) => p.moneda === m);
+                  if (filas.length === 0) return null;
+                  return (
+                    <div key={m} style={{ marginBottom: '6px' }}>
+                      <strong style={{ fontSize: '13px' }}>{etiquetaMoneda(m)}:</strong>{' '}
+                      {filas.map((f, i) => (
+                        <span key={f.metodo} style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
+                          {f.metodo} <span className="cifra-dinero" style={{ color: 'var(--grafito)' }}>{Number(f.total).toFixed(2)}</span>
+                          {i < filas.length - 1 ? ' · ' : ''}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Movimientos detallados */}
+            <p style={estiloTituloSeccion}>Movimientos del turno ({movimientosFinal.length})</p>
+            {movimientosFinal.length === 0 && (
+              <p style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>Sin movimientos registrados.</p>
+            )}
+            {movimientosFinal.map((ev, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: 'var(--borde-fino)' }}>
+                <div>
+                  <span
+                    style={{
+                      fontSize: '9px', textTransform: 'uppercase', fontWeight: 700,
+                      color: ev.tipo === 'venta' ? 'var(--grafito)' : ev.tipo === 'ingreso' || ev.tipo === 'abono' ? '#2e7d32' : 'var(--rojo-cerveloza)',
+                      border: '1px solid currentColor', borderRadius: '2px', padding: '1px 5px', marginRight: '6px'
+                    }}
+                  >
+                    {ev.tipo}
+                  </span>
+                  <span style={{ fontSize: '13px' }}>{ev.detalle}</span>
+                  <div style={{ fontSize: '10px', color: 'var(--gris-concreto)' }}>
+                    {new Date(ev.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  {ev.tipo === 'venta' ? (
+                    <>
+                      {ev.usd > 0 && <div className="cifra-dinero" style={{ fontSize: '12px' }}>{ev.usd.toFixed(2)} USD</div>}
+                      {ev.cop > 0 && <div className="cifra-dinero" style={{ fontSize: '12px' }}>{ev.cop.toFixed(2)} COP</div>}
+                      {ev.ves > 0 && <div className="cifra-dinero" style={{ fontSize: '12px' }}>{ev.ves.toFixed(2)} Bs</div>}
+                    </>
+                  ) : (
+                    <span className="cifra-dinero" style={{ fontSize: '13px', fontWeight: 600, color: ev.tipo === 'egreso' ? 'var(--rojo-cerveloza)' : '#2e7d32' }}>
+                      {ev.tipo === 'egreso' ? '−' : '+'}{ev.monto.toFixed(2)} {etiquetaMoneda(ev.moneda)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ padding: 'var(--espacio-lg)', borderTop: 'var(--borde-fino)' }}>
+            <button onClick={onGuardado} style={{ ...estiloBotonPrimario, width: '100%' }}>
+              Finalizar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== Formulario de conteo (antes de cerrar) =====
   return (
     <div style={estiloOverlay} onClick={onCerrar}>
       <form onSubmit={manejarSubmit} style={estiloModal} onClick={(e) => e.stopPropagation()}>
@@ -514,6 +654,16 @@ const estiloBotonPrimario = {
 const estiloBotonSecundario = {
   padding: '10px 16px', backgroundColor: 'transparent', color: 'var(--grafito)',
   border: 'var(--borde-fino)', borderRadius: '2px', fontFamily: 'var(--fuente-base)', fontSize: '14px', cursor: 'pointer'
+};
+
+const estiloTituloSeccion = {
+  fontSize: '11px',
+  fontWeight: 700,
+  color: 'var(--rojo-cerveloza)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  marginTop: 'var(--espacio-md)',
+  marginBottom: 'var(--espacio-sm)'
 };
 
 export default Caja;
