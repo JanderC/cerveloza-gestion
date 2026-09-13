@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import api from '../api/axios';
 
+
 const MONEDAS = ['USD', 'COP', 'VES'];
+const [sesionCajaId, setSesionCajaId] = useState(null);
+
 
 function etiquetaMoneda(m) {
   return m === 'VES' ? 'Bs' : m;
@@ -158,6 +161,7 @@ function Clientes() {
       {clienteAbono && (
         <ModalAbono
           cliente={clienteAbono}
+          sesionCajaId={sesionCajaId}
           onCerrar={() => setClienteAbono(null)}
           onGuardado={() => {
             setClienteAbono(null);
@@ -269,7 +273,7 @@ function ModalEstadoCuenta({ cliente, onCerrar }) {
   );
 }
 
-function ModalAbono({ cliente, onCerrar, onGuardado }) {
+function ModalAbono({ cliente, sesionCajaId, onCerrar, onGuardado }) {
   const monedasConDeuda = cliente.saldos.map((s) => s.moneda);
   const [modo, setModo] = useState('completo'); // 'completo' | 'parcial'
   const [form, setForm] = useState({ moneda: monedasConDeuda[0] || 'USD', monto: '', metodo_pago_id: '' });
@@ -302,7 +306,8 @@ function ModalAbono({ cliente, onCerrar, onGuardado }) {
         cliente_id: cliente.id,
         moneda: form.moneda,
         monto: montoFinal,
-        metodo_pago_id: Number(form.metodo_pago_id)
+        metodo_pago_id: Number(form.metodo_pago_id),
+        sesion_caja_id: sesionCajaId
       });
       toast.success(modo === 'completo' ? 'Deuda cancelada por completo' : 'Abono registrado');
       onGuardado();

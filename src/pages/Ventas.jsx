@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { FiTrash2, FiSearch, FiUserPlus } from 'react-icons/fi';
 import api from '../api/axios';
 import ReciboImprimible from '../components/ReciboImprimible';
+import { useNavigate } from 'react-router-dom';
 
 const MONEDAS = ['USD', 'COP', 'VES'];
 
@@ -26,7 +27,7 @@ function Ventas() {
   const [busquedaVentas, setBusquedaVentas] = useState('');
   const [paginaVentas, setPaginaVentas] = useState(1);
   const VENTAS_POR_PAGINA = 5;
-
+  const navigate = useNavigate();
   const [sesionCajaId, setSesionCajaId] = useState(null);
   const [mostrarFiado, setMostrarFiado] = useState(false);
   const [busquedaCliente, setBusquedaCliente] = useState('');
@@ -418,6 +419,24 @@ function Ventas() {
           </div>
         </div>
       </div>
+
+      <button
+        onClick={() => navigate('/caja')}
+        style={{
+          padding: '8px 14px',
+          border: 'var(--borde-fino)',
+          backgroundColor: 'transparent',
+          color: 'var(--grafito)',
+          fontFamily: 'var(--fuente-base)',
+          fontWeight: 600,
+          fontSize: '13px',
+          cursor: 'pointer',
+          borderRadius: '2px',
+          alignSelf: 'flex-end'
+        }}
+      >
+        Ir a Caja
+      </button>
 
       <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 'var(--espacio-xl)' }}>
         <div>
