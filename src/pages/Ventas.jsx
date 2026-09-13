@@ -70,10 +70,15 @@ function Ventas() {
     }
   }
 
-  function filtrarVentasDeHoy(ventas) {
-    const hoy = new Date().toDateString();
-    return ventas.filter((v) => new Date(v.fecha).toDateString() === hoy);
-  }
+  function obtenerFechaCaracas(fecha) {
+  // Devuelve 'YYYY-MM-DD' según la hora de Venezuela, sin importar la zona horaria del navegador
+  return new Date(fecha).toLocaleDateString('en-CA', { timeZone: 'America/Caracas' });
+}
+
+function filtrarVentasDeHoy(ventas) {
+  const hoyCaracas = obtenerFechaCaracas(new Date());
+  return ventas.filter((v) => obtenerFechaCaracas(v.fecha) === hoyCaracas);
+}
 
   function convertirAUSD(monto, moneda) {
     if (!tasa || !monto) return 0;
