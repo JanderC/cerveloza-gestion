@@ -4,7 +4,6 @@ import api from '../api/axios';
 
 
 const MONEDAS = ['USD', 'COP', 'VES'];
-const [sesionCajaId, setSesionCajaId] = useState(null);
 
 
 function etiquetaMoneda(m) {
@@ -17,6 +16,12 @@ function Clientes() {
   const [clienteDetalle, setClienteDetalle] = useState(null);
   const [clienteAbono, setClienteAbono] = useState(null);
   const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false);
+  const [sesionCajaId, setSesionCajaId] = useState(null);
+
+
+  useEffect(() => {
+  api.get('/caja/abierta').then((r) => setSesionCajaId(r.data?.id || null)).catch(() => {});
+}, []);
 
   useEffect(() => {
     cargarClientes();
