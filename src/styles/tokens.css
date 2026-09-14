@@ -143,10 +143,6 @@ input[type='number'] {
 }
 
 @media print {
-  @page {
-    size: 80mm auto;
-    margin: 0;
-  }
 
   body * {
     visibility: hidden;
@@ -188,10 +184,7 @@ input[type='number'] {
 .reporte-imprimible { display: none; }
 
 @media print {
-  @page {
-    size: auto;
-    margin: 12mm;
-  }
+
   .reporte-imprimible {
     display: block;
     font-family: 'Courier New', monospace;

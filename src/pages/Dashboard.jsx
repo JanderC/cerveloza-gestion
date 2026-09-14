@@ -1,34 +1,45 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
+import { filtrarVentasDeHoy } from '../utils/fechaCaracas';
 
 function Dashboard() {
   const { usuario } = useAuth();
-  const [resumen, setResumen] = useState(null);
+  const [ventasHoy, setVentasHoy] = useState([]);
+  const [mesResumen, setMesResumen] = useState(null);
+  const [productoLider, setProductoLider] = useState(null);
+  const [stockBajo, setStockBajo] = useState(0);
   const [catalogoDestacado, setCatalogoDestacado] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
-useEffect(() => {
-  cargarDatos();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [usuario]);
+  useEffect(() => {
+    cargarDatos();
+  }, [usuario]);
 
   async function cargarDatos() {
     setCargando(true);
     try {
       const peticiones = [api.get('/productos')];
       if (usuario?.rol === 'admin') {
+        // Mismo endpoint que usa la pantalla de Ventas: garantiza que "hoy" sea idéntico en ambos lados
+        peticiones.push(api.get('/ventas'));
         peticiones.push(api.get('/reportes/resumen'));
       }
 
       const respuestas = await Promise.all(peticiones);
       const productos = respuestas[0].data;
-
       setCatalogoDestacado(productos.filter((p) => p.imagen_url).slice(0, 6));
 
       if (usuario?.rol === 'admin') {
-        setResumen(respuestas[1].data);
+        const todasLasVentas = respuestas[1].data;
+        setVentasHoy(filtrarVentasDeHoy(todasLasVentas));
+
+        // Solo usamos este endpoint para datos que no dependen del filtro "hoy": el total del mes y el producto líder
+        const resumen = respuestas[2].data;
+        setMesResumen(resumen.mes);
+        setProductoLider(resumen.producto_mas_vendido_hoy);
+        setStockBajo(resumen.productos_stock_bajo);
       }
     } catch (err) {
       setError('No se pudo cargar el dashboard');
@@ -36,6 +47,16 @@ useEffect(() => {
       setCargando(false);
     }
   }
+
+  // Idéntico criterio de suma que usa Ventas.jsx para "Ventas de hoy"
+  const totalesHoyPorMoneda = ventasHoy.reduce(
+    (acc, v) => ({
+      usd: acc.usd + Number(v.monto_usd || 0),
+      cop: acc.cop + Number(v.monto_cop || 0),
+      ves: acc.ves + Number(v.monto_ves || 0)
+    }),
+    { usd: 0, cop: 0, ves: 0 }
+  );
 
   return (
     <div>
@@ -52,7 +73,7 @@ useEffect(() => {
         </p>
       )}
 
-      {!cargando && usuario?.rol === 'admin' && resumen && (
+      {!cargando && usuario?.rol === 'admin' && (
         <div
           style={{
             display: 'grid',
@@ -61,60 +82,58 @@ useEffect(() => {
             marginBottom: 'var(--espacio-xl)'
           }}
         >
-          {/* Ventas de hoy, desglosado por moneda */}
+          {/* Ventas de hoy, desglosado por moneda — calculado igual que en Ventas.jsx */}
           <div style={estiloCifra}>
             <span style={estiloEtiqueta}>Ventas de hoy</span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              {Number(resumen.hoy.monto_usd) > 0 && (
+              {totalesHoyPorMoneda.usd > 0 && (
                 <span className="texto-display cifra-dinero" style={{ fontSize: '20px' }}>
-                  ${Number(resumen.hoy.monto_usd).toFixed(2)} <span style={{ fontSize: '12px', color: 'var(--gris-concreto)' }}>USD</span>
+                  ${totalesHoyPorMoneda.usd.toFixed(2)} <span style={{ fontSize: '12px', color: 'var(--gris-concreto)' }}>USD</span>
                 </span>
               )}
-              {Number(resumen.hoy.monto_cop) > 0 && (
+              {totalesHoyPorMoneda.cop > 0 && (
                 <span className="texto-display cifra-dinero" style={{ fontSize: '20px' }}>
-                  {Number(resumen.hoy.monto_cop).toFixed(2)} <span style={{ fontSize: '12px', color: 'var(--gris-concreto)' }}>COP</span>
+                  {totalesHoyPorMoneda.cop.toFixed(2)} <span style={{ fontSize: '12px', color: 'var(--gris-concreto)' }}>COP</span>
                 </span>
               )}
-              {Number(resumen.hoy.monto_ves) > 0 && (
+              {totalesHoyPorMoneda.ves > 0 && (
                 <span className="texto-display cifra-dinero" style={{ fontSize: '20px' }}>
-                  {Number(resumen.hoy.monto_ves).toFixed(2)} <span style={{ fontSize: '12px', color: 'var(--gris-concreto)' }}>VES</span>
+                  {totalesHoyPorMoneda.ves.toFixed(2)} <span style={{ fontSize: '12px', color: 'var(--gris-concreto)' }}>Bs</span>
                 </span>
               )}
-              {Number(resumen.hoy.monto_usd) === 0 && Number(resumen.hoy.monto_cop) === 0 && Number(resumen.hoy.monto_ves) === 0 && (
+              {totalesHoyPorMoneda.usd === 0 && totalesHoyPorMoneda.cop === 0 && totalesHoyPorMoneda.ves === 0 && (
                 <span className="texto-display cifra-dinero" style={{ fontSize: '20px', color: 'var(--gris-concreto)' }}>Sin ventas</span>
               )}
             </div>
           </div>
 
-          {/* Cantidad de ventas */}
+          {/* Cantidad de ventas de hoy */}
           <div style={estiloCifra}>
             <span style={estiloEtiqueta}>Ventas realizadas hoy</span>
             <span className="texto-display cifra-dinero" style={{ fontSize: '32px', display: 'block' }}>
-              {resumen.hoy.cantidad}
+              {ventasHoy.length}
             </span>
-            <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
-              ${Number(resumen.mes.total_usd).toFixed(2)} USD en el mes
-            </span>
+            {mesResumen && (
+              <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
+                ${Number(mesResumen.total_usd).toFixed(2)} USD en el mes
+              </span>
+            )}
           </div>
 
           {/* Producto más vendido hoy */}
           <div style={estiloCifra}>
             <span style={estiloEtiqueta}>Producto más vendido hoy</span>
-            {resumen.producto_mas_vendido_hoy ? (
+            {productoLider ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--espacio-sm)' }}>
                 <div style={{ width: '40px', height: '40px', flexShrink: 0, backgroundColor: 'var(--gris-humo)', overflow: 'hidden' }}>
-                  {resumen.producto_mas_vendido_hoy.imagen_url && (
-                    <img
-                      src={resumen.producto_mas_vendido_hoy.imagen_url}
-                      alt=""
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
+                  {productoLider.imagen_url && (
+                    <img src={productoLider.imagen_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   )}
                 </div>
                 <div>
-                  <p style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>{resumen.producto_mas_vendido_hoy.nombre}</p>
-                  <p style={{ margin: 0, fontSize: '14px', color: 'var(--gris-concreto)' }}>
-                    {resumen.producto_mas_vendido_hoy.cantidad_total} unidades
+                  <p style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>{productoLider.nombre}</p>
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--gris-concreto)' }}>
+                    {productoLider.cantidad_total} unidades
                   </p>
                 </div>
               </div>
@@ -128,20 +147,15 @@ useEffect(() => {
             <span style={estiloEtiqueta}>Productos con stock bajo</span>
             <span
               className="texto-display cifra-dinero"
-              style={{
-                fontSize: '32px',
-                display: 'block',
-                color: Number(resumen.productos_stock_bajo) > 0 ? 'var(--rojo-cerveloza)' : 'var(--grafito)'
-              }}
+              style={{ fontSize: '32px', display: 'block', color: Number(stockBajo) > 0 ? 'var(--rojo-cerveloza)' : 'var(--grafito)' }}
             >
-              {resumen.productos_stock_bajo}
+              {stockBajo}
             </span>
-            <span style={{ fontSize: '14px', color: 'var(--gris-concreto)' }}>5 unidades o menos</span>
+            <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>5 unidades o menos</span>
           </div>
         </div>
       )}
 
-      {/* Catálogo destacado, visible para admin y cajero */}
       {!cargando && catalogoDestacado.length > 0 && (
         <div>
           <h2 className="texto-display" style={{ fontSize: '16px', marginBottom: 'var(--espacio-sm)' }}>
@@ -173,7 +187,7 @@ useEffect(() => {
                 />
                 <p style={{ fontSize: '13px', fontWeight: 600, margin: 0 }}>{producto.nombre}</p>
                 <p className="cifra-dinero" style={{ fontSize: '13px', margin: 0 }}>
-                  {Number(producto.precio_venta).toFixed(2)} {producto.moneda_base}
+                  {Number(producto.precio_venta).toFixed(2)} {producto.moneda_base === 'VES' ? 'Bs' : producto.moneda_base}
                 </p>
               </div>
             ))}
@@ -191,7 +205,7 @@ const estiloCifra = {
 };
 
 const estiloEtiqueta = {
-  fontSize: '14px',
+  fontSize: '12px',
   color: 'var(--gris-concreto)',
   display: 'block',
   marginBottom: 'var(--espacio-sm)'

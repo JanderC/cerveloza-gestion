@@ -3,7 +3,9 @@ import { toast } from 'react-toastify';
 import { FiTrash2, FiSearch, FiUserPlus } from 'react-icons/fi';
 import api from '../api/axios';
 import ReciboImprimible from '../components/ReciboImprimible';
+import { imprimirDocumento } from '../utils/imprimir';
 import { useNavigate } from 'react-router-dom';
+import { filtrarVentasDeHoy } from '../utils/fechaCaracas';
 
 const MONEDAS = ['USD', 'COP', 'VES'];
 
@@ -75,10 +77,7 @@ function Ventas() {
   return new Date(fecha).toLocaleDateString('en-CA', { timeZone: 'America/Caracas' });
 }
 
-function filtrarVentasDeHoy(ventas) {
-  const hoyCaracas = obtenerFechaCaracas(new Date());
-  return ventas.filter((v) => obtenerFechaCaracas(v.fecha) === hoyCaracas);
-}
+
 
   function convertirAUSD(monto, moneda) {
     if (!tasa || !monto) return 0;
@@ -1052,9 +1051,9 @@ function filtrarVentasDeHoy(ventas) {
               Folio: {ultimoRecibo.numeroVenta}
             </p>
 
-            <button onClick={() => window.print()} style={{ ...estiloBotonPrimario, width: '100%', marginBottom: 'var(--espacio-sm)' }}>
-              Imprimir recibo
-            </button>
+            <button onClick={() => imprimirDocumento('ticket')} style={{ ...estiloBotonPrimario, width: '100%', marginBottom: 'var(--espacio-sm)' }}>
+                Imprimir recibo
+              </button>
             <button onClick={() => setUltimoRecibo(null)} style={{ ...estiloBotonSecundario, width: '100%' }}>
               Cerrar sin imprimir
             </button>

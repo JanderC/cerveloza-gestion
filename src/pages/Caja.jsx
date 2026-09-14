@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import api from '../api/axios';
 import ReciboCierreImprimible from '../components/ReciboCierreImprimible';
+import { imprimirDocumento } from '../utils/imprimir';
 
 const MONEDAS = ['USD', 'COP', 'VES'];
 
@@ -38,7 +39,7 @@ function Caja() {
 
   useEffect(() => {
     if (reporteParaImprimir) {
-      setTimeout(() => window.print(), 200);
+      setTimeout(() => imprimirDocumento('reporte'), 200);
     }
   }, [reporteParaImprimir]);
 
@@ -647,7 +648,7 @@ function ModalCierre({ sesion, onCerrar, onGuardado }) {
           </div>
 
           <div style={{ display: 'flex', gap: 'var(--espacio-sm)', padding: 'var(--espacio-lg)', borderTop: 'var(--borde-fino)' }}>
-            <button onClick={() => window.print()} style={{ ...estiloBotonSecundario, flex: 1 }}>
+            <button onClick={() => imprimirDocumento('reporte')} style={{ ...estiloBotonSecundario, flex: 1 }}>
               Imprimir
             </button>
             <button onClick={onGuardado} style={{ ...estiloBotonPrimario, flex: 1 }}>
