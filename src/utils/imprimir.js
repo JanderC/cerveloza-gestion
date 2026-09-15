@@ -9,9 +9,26 @@ export function imprimirDocumento(tipo) {
       : '@page { size: auto; margin: 12mm; }';
 
   document.head.appendChild(estilo);
-  window.print();
 
-  setTimeout(() => {
+  function limpiar() {
     document.getElementById('estilo-pagina-impresion')?.remove();
-  }, 1000);
+    window.removeEventListener('afterprint', limpiar);
+  }
+  window.addEventListener('afterprint', limpiar);
+
+  // Esperamos a que las fuentes terminen de cargar y a que el navegador
+  // pinte el layout con el nuevo @page antes de abrir el diálogo de impresión.
+  // Si se llama a print() justo después de insertar el <style>, el navegador
+  // puede rasterizar con el layout/fuente a medio aplicar (letras mal formadas).
+  document.fonts.ready.then(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.print();
+      });
+    });
+  });
+
+  // Respaldo: si por algún motivo 'afterprint' nunca dispara (pasa en algunos
+  // navegadores/impresoras virtuales), igual limpiamos el estilo más tarde.
+  setTimeout(limpiar, 5000);
 }
