@@ -36,6 +36,7 @@ function Ventas() {
   const [mostrarModalMovimiento, setMostrarModalMovimiento] = useState(false);
   const [tipoMovimientoInicial, setTipoMovimientoInicial] = useState('egreso');
   const [conteoCaja, setConteoCaja] = useState({ USD: '', COP: '', VES: '' });
+  const [movimientosDiaCaja, setMovimientosDiaCaja] = useState([]);
   const [mostrarFiado, setMostrarFiado] = useState(false);
   const [busquedaCliente, setBusquedaCliente] = useState('');
   const [resultadosClientes, setResultadosClientes] = useState([]);
@@ -68,8 +69,10 @@ function Ventas() {
 
       if (respCaja.data?.id) {
         cargarResumenCaja(respCaja.data.id);
+        cargarMovimientosDiaCaja(respCaja.data.id);
       } else {
         setResumenCaja(null);
+        setMovimientosDiaCaja([]);
       }
 
       setPagos((prev) =>
@@ -89,6 +92,17 @@ function Ventas() {
     try {
       const respuesta = await api.get(`/caja/${id}/resumen`);
       setResumenCaja(respuesta.data);
+    } catch (error) {
+      // silencioso — no debe bloquear el flujo de ventas si esto falla
+    }
+  }
+
+  // Detalle individual (con concepto) de cada retiro/ingreso manual del turno,
+  // para mostrar exactamente qué se vendió y qué se retiró, no solo el total agregado
+  async function cargarMovimientosDiaCaja(id) {
+    try {
+      const respuesta = await api.get(`/caja/${id}/movimientos-dia`);
+      setMovimientosDiaCaja(respuesta.data.filter((ev) => ev.tipo === 'ingreso' || ev.tipo === 'egreso'));
     } catch (error) {
       // silencioso — no debe bloquear el flujo de ventas si esto falla
     }
@@ -525,8 +539,13 @@ function Ventas() {
           {resumenCaja &&
             MONEDAS.map((m) => {
               const fondoInicial = Number(sesionCaja[`fondo_inicial_${m.toLowerCase()}`]) || 0;
+              const ventasEfectivo = obtenerMontoCaja(resumenCaja.ventas_efectivo, m);
+              const ingresos = obtenerMontoCaja(resumenCaja.movimientos.filter((mv) => mv.tipo === 'ingreso'), m);
+              const egresos = obtenerMontoCaja(resumenCaja.movimientos.filter((mv) => mv.tipo === 'egreso'), m);
               const esperado = esperadoCaja(m);
               if (esperado === 0 && fondoInicial === 0) return null;
+
+              const movimientosMoneda = movimientosDiaCaja.filter((ev) => ev.moneda === m);
 
               const contado = conteoCaja[m];
               const contadoNum = contado === '' ? null : Number(contado);
@@ -537,14 +556,54 @@ function Ventas() {
                   key={m}
                   style={{ marginBottom: 'var(--espacio-md)', paddingBottom: 'var(--espacio-md)', borderBottom: 'var(--borde-fino)' }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
-                      Esperado en efectivo ({etiquetaMoneda(m)})
+                  <div style={{ fontSize: '13px', color: 'var(--gris-concreto)', marginBottom: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Fondo inicial</span>
+                      <span className="cifra-dinero">{fondoInicial.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>+ Ventas en efectivo</span>
+                      <span className="cifra-dinero">{ventasEfectivo.toFixed(2)}</span>
+                    </div>
+                    {ingresos > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>+ Ingresos</span>
+                        <span className="cifra-dinero">{ingresos.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>− Retiros</span>
+                      <span className="cifra-dinero">{egresos.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px', borderTop: 'var(--borde-fino)', paddingTop: '6px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700 }}>
+                      = Esperado en efectivo ({etiquetaMoneda(m)})
                     </span>
                     <span className="texto-display cifra-dinero" style={{ fontSize: '18px' }}>
                       {esperado.toFixed(2)}
                     </span>
                   </div>
+
+                  {movimientosMoneda.length > 0 && (
+                    <div style={{ marginBottom: 'var(--espacio-sm)' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--gris-concreto)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Retiros / ingresos de hoy
+                      </span>
+                      {movimientosMoneda.map((ev, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '4px' }}>
+                          <span>
+                            [{ev.tipo === 'egreso' ? 'RETIRO' : 'INGRESO'}] {ev.detalle} ·{' '}
+                            {new Date(ev.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <span className="cifra-dinero" style={{ color: ev.tipo === 'egreso' ? 'var(--rojo-cerveloza)' : '#2e7d32' }}>
+                            {ev.tipo === 'egreso' ? '-' : '+'}{ev.monto.toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   <input
                     type="text"
@@ -1211,6 +1270,7 @@ function Ventas() {
           onGuardado={() => {
             setMostrarModalMovimiento(false);
             cargarResumenCaja(sesionCaja.id);
+            cargarMovimientosDiaCaja(sesionCaja.id);
           }}
         />
       )}
