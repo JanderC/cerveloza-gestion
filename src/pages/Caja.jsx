@@ -657,7 +657,13 @@ function ModalCierre({ sesion, onCerrar, onGuardado }) {
           </div>
         </div>
 
-        <ReciboCierreImprimible datos={{ sesion: resultadoCierre, resumen: resumenFinal, movimientos: movimientosFinal }} />
+        <ReciboCierreImprimible
+          datos={{
+            sesion: { ...sesion, ...resultadoCierre },
+            resumen: resumenFinal,
+            movimientos: movimientosFinal
+          }}
+        />
       </div>
     );
   }
