@@ -198,21 +198,26 @@ input[type='number'] {
     width: 80mm;
     padding: 4mm;
     font-family: 'Courier New', monospace;
-    font-size: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    line-height: 1.5;
     color: #000;
   }
   .reporte-imprimible h3 {
-    font-size: 13px;
+    font-size: 17px;
+    font-weight: 700;
     margin: 3mm 0 2mm;
   }
   .reporte-linea {
     border: none;
-    border-top: 1px dashed #000;
+    border-top: 2px dashed #000;
     margin: 3mm 0;
   }
   .reporte-fila {
     display: flex;
     justify-content: space-between;
     gap: 8px;
+    font-weight: 700;
   }
 }
