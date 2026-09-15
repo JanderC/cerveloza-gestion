@@ -31,6 +31,11 @@ function Ventas() {
   const VENTAS_POR_PAGINA = 5;
   const navigate = useNavigate();
   const [sesionCajaId, setSesionCajaId] = useState(null);
+  const [sesionCaja, setSesionCaja] = useState(null);
+  const [resumenCaja, setResumenCaja] = useState(null);
+  const [mostrarModalMovimiento, setMostrarModalMovimiento] = useState(false);
+  const [tipoMovimientoInicial, setTipoMovimientoInicial] = useState('egreso');
+  const [conteoCaja, setConteoCaja] = useState({ USD: '', COP: '', VES: '' });
   const [mostrarFiado, setMostrarFiado] = useState(false);
   const [busquedaCliente, setBusquedaCliente] = useState('');
   const [resultadosClientes, setResultadosClientes] = useState([]);
@@ -59,6 +64,13 @@ function Ventas() {
       setVentasHoy(filtrarVentasDeHoy(respVentas.data));
       setMetodosPago(respMetodos.data);
       setSesionCajaId(respCaja.data?.id || null);
+      setSesionCaja(respCaja.data || null);
+
+      if (respCaja.data?.id) {
+        cargarResumenCaja(respCaja.data.id);
+      } else {
+        setResumenCaja(null);
+      }
 
       setPagos((prev) =>
         prev.length > 0
@@ -70,6 +82,37 @@ function Ventas() {
     } finally {
       setCargandoInicial(false);
     }
+  }
+
+  // Trae el resumen en vivo del turno (ventas efectivo, ingresos/egresos, abonos) para el cuadre rápido
+  async function cargarResumenCaja(id) {
+    try {
+      const respuesta = await api.get(`/caja/${id}/resumen`);
+      setResumenCaja(respuesta.data);
+    } catch (error) {
+      // silencioso — no debe bloquear el flujo de ventas si esto falla
+    }
+  }
+
+  function obtenerMontoCaja(lista, moneda) {
+    const fila = lista?.find((f) => f.moneda === moneda);
+    return fila ? Number(fila.total) : 0;
+  }
+
+  // Misma fórmula que usa Caja.jsx al cerrar: fondo inicial + ventas en efectivo + ingresos - egresos + abonos
+  function esperadoCaja(moneda) {
+    if (!sesionCaja || !resumenCaja) return 0;
+    const fondoInicial = Number(sesionCaja[`fondo_inicial_${moneda.toLowerCase()}`]) || 0;
+    const ventasEfectivo = obtenerMontoCaja(resumenCaja.ventas_efectivo, moneda);
+    const ingresos = obtenerMontoCaja(resumenCaja.movimientos.filter((mv) => mv.tipo === 'ingreso'), moneda);
+    const egresos = obtenerMontoCaja(resumenCaja.movimientos.filter((mv) => mv.tipo === 'egreso'), moneda);
+    const abonos = obtenerMontoCaja(resumenCaja.abonos_efectivo, moneda);
+    return fondoInicial + ventasEfectivo + ingresos - egresos + abonos;
+  }
+
+  function abrirModalMovimiento(tipo) {
+    setTipoMovimientoInicial(tipo);
+    setMostrarModalMovimiento(true);
   }
 
   function obtenerFechaCaracas(fecha) {
@@ -436,11 +479,110 @@ function Ventas() {
           fontSize: '13px',
           cursor: 'pointer',
           borderRadius: '2px',
-          alignSelf: 'flex-end'
+          alignSelf: 'flex-end',
+          marginBottom: 'var(--espacio-md)'
         }}
       >
         Ir a Caja
       </button>
+
+      {sesionCaja && (
+        <div
+          className="superficie"
+          style={{
+            borderLeft: '4px solid var(--rojo-cerveloza)',
+            backgroundColor: 'var(--gris-humo)',
+            padding: 'var(--espacio-lg)',
+            marginBottom: 'var(--espacio-lg)'
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 'var(--espacio-md)',
+              flexWrap: 'wrap',
+              gap: 'var(--espacio-sm)'
+            }}
+          >
+            <h2 className="texto-display" style={{ fontSize: '16px' }}>Cuadre de caja (turno actual)</h2>
+            <div style={{ display: 'flex', gap: 'var(--espacio-sm)' }}>
+              <button
+                onClick={() => abrirModalMovimiento('egreso')}
+                style={{ ...estiloBotonSecundario, borderColor: 'var(--rojo-cerveloza)', color: 'var(--rojo-cerveloza)' }}
+              >
+                − Retirar efectivo
+              </button>
+              <button onClick={() => abrirModalMovimiento('ingreso')} style={estiloBotonSecundario}>
+                + Agregar efectivo
+              </button>
+            </div>
+          </div>
+
+          {!resumenCaja && <p style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>Cargando cuadre...</p>}
+
+          {resumenCaja &&
+            MONEDAS.map((m) => {
+              const fondoInicial = Number(sesionCaja[`fondo_inicial_${m.toLowerCase()}`]) || 0;
+              const esperado = esperadoCaja(m);
+              if (esperado === 0 && fondoInicial === 0) return null;
+
+              const contado = conteoCaja[m];
+              const contadoNum = contado === '' ? null : Number(contado);
+              const diferencia = contadoNum === null ? null : contadoNum - esperado;
+
+              return (
+                <div
+                  key={m}
+                  style={{ marginBottom: 'var(--espacio-md)', paddingBottom: 'var(--espacio-md)', borderBottom: 'var(--borde-fino)' }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
+                      Esperado en efectivo ({etiquetaMoneda(m)})
+                    </span>
+                    <span className="texto-display cifra-dinero" style={{ fontSize: '18px' }}>
+                      {esperado.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder={`¿Cuánto tenés en ${etiquetaMoneda(m)}?`}
+                    value={contado}
+                    onChange={(e) => {
+                      const valor = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+                      setConteoCaja((prev) => ({ ...prev, [m]: valor }));
+                    }}
+                    style={{ ...estiloInput, width: '100%' }}
+                  />
+
+                  {diferencia !== null && Math.abs(diferencia) < 0.05 && (
+                    <p style={{ fontSize: '13px', color: '#2e7d32', fontWeight: 700, marginTop: '6px' }}>
+                      Cuadra perfecto ✓
+                    </p>
+                  )}
+                  {diferencia !== null && diferencia <= -0.05 && (
+                    <p style={{ fontSize: '13px', color: 'var(--rojo-cerveloza)', fontWeight: 700, marginTop: '6px' }}>
+                      Te faltan {Math.abs(diferencia).toFixed(2)} {etiquetaMoneda(m)} — verificá productos vendidos
+                    </p>
+                  )}
+                  {diferencia !== null && diferencia >= 0.05 && (
+                    <p style={{ fontSize: '13px', color: 'var(--rojo-cerveloza)', fontWeight: 700, marginTop: '6px' }}>
+                      Tenés {diferencia.toFixed(2)} {etiquetaMoneda(m)} de más — verificá productos vendidos
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+
+          <p style={{ fontSize: '11px', color: 'var(--gris-concreto)', margin: 0 }}>
+            Esto es una verificación rápida durante el turno, no cierra caja. Para cerrar el turno formalmente
+            (con conteo final y recibo impreso), andá a Caja.
+          </p>
+        </div>
+      )}
 
       <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 'var(--espacio-xl)' }}>
         <div>
@@ -1061,7 +1203,113 @@ function Ventas() {
         </div>
       )}
 
+      {mostrarModalMovimiento && sesionCaja && (
+        <ModalMovimientoCaja
+          sesionId={sesionCaja.id}
+          tipoInicial={tipoMovimientoInicial}
+          onCerrar={() => setMostrarModalMovimiento(false)}
+          onGuardado={() => {
+            setMostrarModalMovimiento(false);
+            cargarResumenCaja(sesionCaja.id);
+          }}
+        />
+      )}
+
       <ReciboImprimible datos={ultimoRecibo} />
+    </div>
+  );
+}
+
+function ModalMovimientoCaja({ sesionId, tipoInicial, onCerrar, onGuardado }) {
+  const [tipo, setTipo] = useState(tipoInicial || 'egreso');
+  const [concepto, setConcepto] = useState('');
+  const [moneda, setMoneda] = useState('COP');
+  const [monto, setMonto] = useState('');
+  const [guardando, setGuardando] = useState(false);
+
+  async function manejarSubmit(e) {
+    e.preventDefault();
+    if (!concepto.trim() || !monto) {
+      toast.error('Completa el concepto y el monto');
+      return;
+    }
+    setGuardando(true);
+    try {
+      await api.post('/caja/movimiento', {
+        sesion_caja_id: sesionId,
+        tipo,
+        concepto: concepto.trim(),
+        moneda,
+        monto: Number(monto)
+      });
+      toast.success(tipo === 'egreso' ? 'Retiro registrado' : 'Ingreso registrado');
+      onGuardado();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'No se pudo registrar el movimiento');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, backgroundColor: 'rgba(26, 26, 26, 0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 35
+      }}
+      onClick={onCerrar}
+    >
+      <form
+        onSubmit={manejarSubmit}
+        className="superficie"
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: '100%', maxWidth: '380px', padding: 'var(--espacio-lg)' }}
+      >
+        <h2 className="texto-display" style={{ fontSize: '17px', marginBottom: 'var(--espacio-md)' }}>
+          {tipo === 'egreso' ? 'Retirar efectivo de caja' : 'Agregar efectivo a caja'}
+        </h2>
+
+        <div style={{ display: 'flex', gap: 'var(--espacio-md)', marginBottom: 'var(--espacio-md)' }}>
+          <label style={{ fontSize: '14px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+            <input type="radio" checked={tipo === 'egreso'} onChange={() => setTipo('egreso')} />
+            Retiro (egreso)
+          </label>
+          <label style={{ fontSize: '14px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+            <input type="radio" checked={tipo === 'ingreso'} onChange={() => setTipo('ingreso')} />
+            Ingreso extra
+          </label>
+        </div>
+
+        <input
+          placeholder={tipo === 'egreso' ? 'Motivo del retiro (ej: pago a proveedor de hielo)' : 'Motivo del ingreso'}
+          value={concepto}
+          onChange={(e) => setConcepto(e.target.value)}
+          style={{ ...estiloInput, width: '100%', marginBottom: 'var(--espacio-md)' }}
+        />
+
+        <div style={{ display: 'flex', gap: 'var(--espacio-sm)', marginBottom: 'var(--espacio-lg)' }}>
+          <select value={moneda} onChange={(e) => setMoneda(e.target.value)} style={{ ...estiloInput, flex: '0 0 90px' }}>
+            {MONEDAS.map((m) => (
+              <option key={m} value={m}>{etiquetaMoneda(m)}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="Monto"
+            value={monto}
+            onChange={(e) => setMonto(e.target.value.replace(',', '.').replace(/[^0-9.]/g, ''))}
+            style={{ ...estiloInput, flex: 1 }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: 'var(--espacio-sm)' }}>
+          <button type="button" onClick={onCerrar} style={{ ...estiloBotonSecundario, flex: 1 }}>Cancelar</button>
+          <button type="submit" disabled={guardando} style={{ ...estiloBotonPrimario, flex: 1, justifyContent: 'center' }}>
+            {guardando ? 'Guardando...' : 'Registrar'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
