@@ -424,14 +424,32 @@ function Ventas() {
     { usd: 0, cop: 0, ves: 0 }
   );
 
-  const ventasHoyFiltradas = ventasHoy.filter((v) => {
+  // Combina ventas + retiros/ingresos de caja en un solo feed cronológico,
+  // para que en Ventas se vea todo el movimiento del turno en un solo lugar
+  const feedHoy = [
+    ...ventasHoy.map((v) => ({
+      tipoFila: 'venta',
+      fecha: v.fecha,
+      venta: v
+    })),
+    ...movimientosDiaCaja.map((ev) => ({
+      tipoFila: ev.tipo, // 'ingreso' | 'egreso'
+      fecha: ev.fecha,
+      movimiento: ev
+    }))
+  ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+  const feedHoyFiltrado = feedHoy.filter((f) => {
     const termino = busquedaVentas.trim().toLowerCase();
     if (!termino) return true;
-    return v.numero_venta.toLowerCase().includes(termino) || v.vendedor.toLowerCase().includes(termino);
+    if (f.tipoFila === 'venta') {
+      return f.venta.numero_venta.toLowerCase().includes(termino) || f.venta.vendedor.toLowerCase().includes(termino);
+    }
+    return f.movimiento.detalle.toLowerCase().includes(termino);
   });
 
-  const totalPaginasVentas = Math.max(1, Math.ceil(ventasHoyFiltradas.length / VENTAS_POR_PAGINA));
-  const ventasHoyPagina = ventasHoyFiltradas.slice(
+  const totalPaginasVentas = Math.max(1, Math.ceil(feedHoyFiltrado.length / VENTAS_POR_PAGINA));
+  const feedHoyPagina = feedHoyFiltrado.slice(
     (paginaVentas - 1) * VENTAS_POR_PAGINA,
     paginaVentas * VENTAS_POR_PAGINA
   );
@@ -545,8 +563,6 @@ function Ventas() {
               const esperado = esperadoCaja(m);
               if (esperado === 0 && fondoInicial === 0) return null;
 
-              const movimientosMoneda = movimientosDiaCaja.filter((ev) => ev.moneda === m);
-
               const contado = conteoCaja[m];
               const contadoNum = contado === '' ? null : Number(contado);
               const diferencia = contadoNum === null ? null : contadoNum - esperado;
@@ -585,25 +601,6 @@ function Ventas() {
                       {esperado.toFixed(2)}
                     </span>
                   </div>
-
-                  {movimientosMoneda.length > 0 && (
-                    <div style={{ marginBottom: 'var(--espacio-sm)' }}>
-                      <span style={{ fontSize: '11px', color: 'var(--gris-concreto)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Retiros / ingresos de hoy
-                      </span>
-                      {movimientosMoneda.map((ev, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '4px' }}>
-                          <span>
-                            [{ev.tipo === 'egreso' ? 'RETIRO' : 'INGRESO'}] {ev.detalle} ·{' '}
-                            {new Date(ev.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                          <span className="cifra-dinero" style={{ color: ev.tipo === 'egreso' ? 'var(--rojo-cerveloza)' : '#2e7d32' }}>
-                            {ev.tipo === 'egreso' ? '-' : '+'}{ev.monto.toFixed(2)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
 
                   <input
                     type="text"
@@ -810,18 +807,19 @@ function Ventas() {
 
           <div style={{ marginTop: 'var(--espacio-xl)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--espacio-sm)', flexWrap: 'wrap', gap: '8px' }}>
-              <h2 className="texto-display" style={{ fontSize: '16px' }}>Ventas de hoy</h2>
+              <h2 className="texto-display" style={{ fontSize: '16px' }}>Movimientos de hoy</h2>
               <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
                 {ventasHoy.length} venta{ventasHoy.length !== 1 ? 's' : ''}
                 {totalesHoyPorMoneda.usd > 0 && ` · $${totalesHoyPorMoneda.usd.toFixed(2)} USD`}
                 {totalesHoyPorMoneda.cop > 0 && ` · ${totalesHoyPorMoneda.cop.toFixed(2)} COP`}
                 {totalesHoyPorMoneda.ves > 0 && ` · ${totalesHoyPorMoneda.ves.toFixed(2)} Bs`}
+                {movimientosDiaCaja.length > 0 && ` · ${movimientosDiaCaja.length} retiro/ingreso${movimientosDiaCaja.length !== 1 ? 's' : ''}`}
               </span>
             </div>
 
-            {ventasHoy.length > 5 && (
+            {feedHoy.length > 5 && (
               <input
-                placeholder="Buscar por folio o vendedor..."
+                placeholder="Buscar por folio, vendedor o concepto..."
                 value={busquedaVentas}
                 onChange={(e) => {
                   setBusquedaVentas(e.target.value);
@@ -832,14 +830,14 @@ function Ventas() {
             )}
 
             {cargandoInicial && <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Cargando...</p>}
-            {!cargandoInicial && ventasHoy.length === 0 && (
-              <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Todavía no hay ventas registradas hoy.</p>
+            {!cargandoInicial && feedHoy.length === 0 && (
+              <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Todavía no hay movimientos registrados hoy.</p>
             )}
-            {!cargandoInicial && ventasHoy.length > 0 && ventasHoyFiltradas.length === 0 && (
+            {!cargandoInicial && feedHoy.length > 0 && feedHoyFiltrado.length === 0 && (
               <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Sin resultados para esa búsqueda.</p>
             )}
 
-            {!cargandoInicial && ventasHoyPagina.length > 0 && (
+            {!cargandoInicial && feedHoyPagina.length > 0 && (
               <>
                 <div className="tabla-scroll">
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -847,40 +845,78 @@ function Ventas() {
                       <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
                         <th style={estiloTh}>Hora</th>
                         <th style={estiloTh}>Folio</th>
-                        <th style={estiloTh}>Vendedor</th>
+                        <th style={estiloTh}>Vendedor / Concepto</th>
                         <th style={{ ...estiloTh, textAlign: 'right' }}>USD</th>
                         <th style={{ ...estiloTh, textAlign: 'right' }}>COP</th>
                         <th style={{ ...estiloTh, textAlign: 'right' }}>Bs</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {ventasHoyPagina.map((v) => (
-                        <tr
-                          key={v.id}
-                          onClick={() => verDetalleVenta(v.id)}
-                          style={{ borderBottom: 'var(--borde-fino)', cursor: 'pointer' }}
-                        >
-                          <td style={estiloTd}>{new Date(v.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                          <td style={estiloTd}>
-                            {v.numero_venta}
-                            {v.estado === 'fiado' && (
-                              <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--rojo-cerveloza)', border: '1px solid var(--rojo-cerveloza)', borderRadius: '2px', padding: '0 4px' }}>
-                                FIADO
+                      {feedHoyPagina.map((f, i) => {
+                        if (f.tipoFila === 'venta') {
+                          const v = f.venta;
+                          return (
+                            <tr
+                              key={`venta-${v.id}`}
+                              onClick={() => verDetalleVenta(v.id)}
+                              style={{ borderBottom: 'var(--borde-fino)', cursor: 'pointer' }}
+                            >
+                              <td style={estiloTd}>{new Date(v.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                              <td style={estiloTd}>
+                                {v.numero_venta}
+                                {v.estado === 'fiado' && (
+                                  <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--rojo-cerveloza)', border: '1px solid var(--rojo-cerveloza)', borderRadius: '2px', padding: '0 4px' }}>
+                                    FIADO
+                                  </span>
+                                )}
+                              </td>
+                              <td style={estiloTd}>{v.vendedor}</td>
+                              <td className="cifra-dinero" style={estiloTd}>
+                                {Number(v.monto_usd) > 0 ? Number(v.monto_usd).toFixed(2) : '—'}
+                              </td>
+                              <td className="cifra-dinero" style={estiloTd}>
+                                {Number(v.monto_cop) > 0 ? Number(v.monto_cop).toFixed(2) : '—'}
+                              </td>
+                              <td className="cifra-dinero" style={estiloTd}>
+                                {Number(v.monto_ves) > 0 ? Number(v.monto_ves).toFixed(2) : '—'}
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        // Fila de retiro o ingreso manual de caja
+                        const ev = f.movimiento;
+                        const colorMonto = ev.tipo === 'egreso' ? 'var(--rojo-cerveloza)' : '#2e7d32';
+                        const signo = ev.tipo === 'egreso' ? '-' : '+';
+                        return (
+                          <tr key={`mov-${i}`} style={{ borderBottom: 'var(--borde-fino)', backgroundColor: 'var(--gris-humo)' }}>
+                            <td style={estiloTd}>{new Date(ev.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                            <td style={estiloTd}>
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  color: colorMonto,
+                                  border: `1px solid ${colorMonto}`,
+                                  borderRadius: '2px',
+                                  padding: '0 4px'
+                                }}
+                              >
+                                {ev.tipo === 'egreso' ? 'RETIRO' : 'INGRESO'}
                               </span>
-                            )}
-                          </td>
-                          <td style={estiloTd}>{v.vendedor}</td>
-                          <td className="cifra-dinero" style={estiloTd}>
-                            {Number(v.monto_usd) > 0 ? Number(v.monto_usd).toFixed(2) : '—'}
-                          </td>
-                          <td className="cifra-dinero" style={estiloTd}>
-                            {Number(v.monto_cop) > 0 ? Number(v.monto_cop).toFixed(2) : '—'}
-                          </td>
-                          <td className="cifra-dinero" style={estiloTd}>
-                            {Number(v.monto_ves) > 0 ? Number(v.monto_ves).toFixed(2) : '—'}
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td style={estiloTd}>{ev.detalle}</td>
+                            <td className="cifra-dinero" style={{ ...estiloTd, color: colorMonto }}>
+                              {ev.moneda === 'USD' ? `${signo}${ev.monto.toFixed(2)}` : '—'}
+                            </td>
+                            <td className="cifra-dinero" style={{ ...estiloTd, color: colorMonto }}>
+                              {ev.moneda === 'COP' ? `${signo}${ev.monto.toFixed(2)}` : '—'}
+                            </td>
+                            <td className="cifra-dinero" style={{ ...estiloTd, color: colorMonto }}>
+                              {ev.moneda === 'VES' ? `${signo}${ev.monto.toFixed(2)}` : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
