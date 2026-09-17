@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://cerveloza-backend-production.up.railway.app/api',
+  baseURL: process.env.REACT_APP_API_URL 
 });
 
 // Adjunta el token JWT guardado en localStorage a cada petición
