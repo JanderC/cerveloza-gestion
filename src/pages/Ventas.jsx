@@ -5,7 +5,6 @@ import api from '../api/axios';
 import ReciboImprimible from '../components/ReciboImprimible';
 import { imprimirDocumento } from '../utils/imprimir';
 import { useNavigate } from 'react-router-dom';
-import { filtrarVentasDeHoy } from '../utils/fechaCaracas';
 
 const MONEDAS = ['USD', 'COP', 'VES'];
 
@@ -37,6 +36,7 @@ function Ventas() {
   const [tipoMovimientoInicial, setTipoMovimientoInicial] = useState('egreso');
   const [conteoCaja, setConteoCaja] = useState({ USD: '', COP: '', VES: '' });
   const [movimientosDiaCaja, setMovimientosDiaCaja] = useState([]);
+  const [bloque, setBloque] = useState(null);
   const [mostrarFiado, setMostrarFiado] = useState(false);
   const [busquedaCliente, setBusquedaCliente] = useState('');
   const [resultadosClientes, setResultadosClientes] = useState([]);
@@ -53,17 +53,26 @@ function Ventas() {
   async function cargarDatosIniciales() {
     setCargandoInicial(true);
     try {
-      const [respProductos, respTasa, respVentas, respMetodos, respCaja] = await Promise.all([
+      const [respProductos, respTasa, respMetodos, respCaja, respBloque] = await Promise.all([
         api.get('/productos'),
         api.get('/tasas/actual'),
-        api.get('/ventas'),
         api.get('/metodos-pago'),
-        api.get('/caja/abierta').catch(() => ({ data: null }))
+        api.get('/caja/abierta').catch(() => ({ data: null })),
+        api.get('/bloques/actual').catch(() => ({ data: null }))
       ]);
       setProductos(respProductos.data);
       setTasa(respTasa.data);
-      setVentasHoy(filtrarVentasDeHoy(respVentas.data));
       setMetodosPago(respMetodos.data);
+      setBloque(respBloque.data || null);
+
+      // Las ventas ya no se filtran por fecha: son las del bloque abierto,
+      // dure lo que dure ese bloque.
+      if (respBloque.data?.id) {
+        const respVentas = await api.get(`/bloques/${respBloque.data.id}/ventas`);
+        setVentasHoy(respVentas.data);
+      } else {
+        setVentasHoy([]);
+      }
       setSesionCajaId(respCaja.data?.id || null);
       setSesionCaja(respCaja.data || null);
 
@@ -518,6 +527,48 @@ function Ventas() {
         Ir a Caja
       </button>
 
+      <div
+        className="superficie"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 'var(--espacio-sm)',
+          padding: 'var(--espacio-md) var(--espacio-lg)',
+          marginBottom: 'var(--espacio-md)'
+        }}
+      >
+        {bloque ? (
+          <>
+            <div>
+              <span style={{ fontSize: '11px', color: 'var(--gris-concreto)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Bloque abierto
+              </span>
+              <div className="texto-display" style={{ fontSize: '15px' }}>
+                {bloque.numero}{bloque.nombre ? ` · ${bloque.nombre}` : ''}
+              </div>
+              <span style={{ fontSize: '12px', color: 'var(--gris-concreto)' }}>
+                Desde {new Date(bloque.fecha_apertura).toLocaleString()} ·{' '}
+                {bloque.resumen?.ventas?.total ?? 0} venta{(bloque.resumen?.ventas?.total ?? 0) !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <button onClick={() => navigate('/bloques')} style={estiloBotonSecundario}>
+              Ver bloques
+            </button>
+          </>
+        ) : (
+          <>
+            <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
+              No hay un bloque abierto. Se abrirá uno automáticamente con la primera venta.
+            </span>
+            <button onClick={() => navigate('/bloques')} style={estiloBotonSecundario}>
+              Abrir bloque
+            </button>
+          </>
+        )}
+      </div>
+
       {sesionCaja && (
         <div
           className="superficie"
@@ -807,7 +858,7 @@ function Ventas() {
 
           <div style={{ marginTop: 'var(--espacio-xl)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--espacio-sm)', flexWrap: 'wrap', gap: '8px' }}>
-              <h2 className="texto-display" style={{ fontSize: '16px' }}>Movimientos de hoy</h2>
+              <h2 className="texto-display" style={{ fontSize: '16px' }}>Movimientos del bloque</h2>
               <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>
                 {ventasHoy.length} venta{ventasHoy.length !== 1 ? 's' : ''}
                 {totalesHoyPorMoneda.usd > 0 && ` · $${totalesHoyPorMoneda.usd.toFixed(2)} USD`}
@@ -831,7 +882,7 @@ function Ventas() {
 
             {cargandoInicial && <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Cargando...</p>}
             {!cargandoInicial && feedHoy.length === 0 && (
-              <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Todavía no hay movimientos registrados hoy.</p>
+              <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Todavía no hay movimientos en este bloque.</p>
             )}
             {!cargandoInicial && feedHoy.length > 0 && feedHoyFiltrado.length === 0 && (
               <p style={{ color: 'var(--gris-concreto)', fontSize: '13px' }}>Sin resultados para esa búsqueda.</p>

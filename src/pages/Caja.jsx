@@ -506,6 +506,13 @@ function ModalMovimiento({ sesionId, onCerrar, onGuardado }) {
 
 function ModalCierre({ sesion, onCerrar, onGuardado }) {
   const [conteo, setConteo] = useState({ conteo_final_usd: '', conteo_final_cop: '', conteo_final_ves: '' });
+  // Efectivo que se deja físicamente en el cajón para abrir el próximo turno.
+  // Lo que no se deja, se deposita automáticamente en el Financiero.
+  const [fondoSiguiente, setFondoSiguiente] = useState({
+    fondo_siguiente_usd: String(sesion.fondo_inicial_usd ?? ''),
+    fondo_siguiente_cop: String(sesion.fondo_inicial_cop ?? ''),
+    fondo_siguiente_ves: String(sesion.fondo_inicial_ves ?? '')
+  });
   const [notas, setNotas] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [resultadoCierre, setResultadoCierre] = useState(null);
@@ -522,6 +529,9 @@ function ModalCierre({ sesion, onCerrar, onGuardado }) {
         conteo_final_usd: Number(conteo.conteo_final_usd) || 0,
         conteo_final_cop: Number(conteo.conteo_final_cop) || 0,
         conteo_final_ves: Number(conteo.conteo_final_ves) || 0,
+        fondo_siguiente_usd: Number(fondoSiguiente.fondo_siguiente_usd) || 0,
+        fondo_siguiente_cop: Number(fondoSiguiente.fondo_siguiente_cop) || 0,
+        fondo_siguiente_ves: Number(fondoSiguiente.fondo_siguiente_ves) || 0,
         notas_cierre: notas.trim() || null
       });
 
@@ -682,6 +692,42 @@ function ModalCierre({ sesion, onCerrar, onGuardado }) {
           <CampoMonto etiqueta="Conteo final USD" valor={conteo.conteo_final_usd} onCambiar={(v) => setConteo((p) => ({ ...p, conteo_final_usd: v }))} />
           <CampoMonto etiqueta="Conteo final COP" valor={conteo.conteo_final_cop} onCambiar={(v) => setConteo((p) => ({ ...p, conteo_final_cop: v }))} />
           <CampoMonto etiqueta="Conteo final Bs" valor={conteo.conteo_final_ves} onCambiar={(v) => setConteo((p) => ({ ...p, conteo_final_ves: v }))} />
+
+          <div style={{ borderTop: 'var(--borde-fino)', paddingTop: 'var(--espacio-md)', marginTop: 'var(--espacio-md)', marginBottom: 'var(--espacio-md)' }}>
+            <h3 className="texto-display" style={{ fontSize: '14px', marginBottom: '4px' }}>
+              Fondo que queda en caja para mañana
+            </h3>
+            <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', marginTop: 0, marginBottom: 'var(--espacio-md)' }}>
+              Lo que no se deja acá se deposita en el Financiero.
+            </p>
+
+            <CampoMonto etiqueta="Deja en caja USD" valor={fondoSiguiente.fondo_siguiente_usd} onCambiar={(v) => setFondoSiguiente((p) => ({ ...p, fondo_siguiente_usd: v }))} />
+            <CampoMonto etiqueta="Deja en caja COP" valor={fondoSiguiente.fondo_siguiente_cop} onCambiar={(v) => setFondoSiguiente((p) => ({ ...p, fondo_siguiente_cop: v }))} />
+            <CampoMonto etiqueta="Deja en caja Bs" valor={fondoSiguiente.fondo_siguiente_ves} onCambiar={(v) => setFondoSiguiente((p) => ({ ...p, fondo_siguiente_ves: v }))} />
+
+            <div style={{ backgroundColor: 'var(--gris-humo)', padding: 'var(--espacio-md)', border: 'var(--borde-fino)' }}>
+              <span style={{ fontSize: '11px', color: 'var(--gris-concreto)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Se depositará en el Financiero
+              </span>
+              {[
+                { m: 'USD', etiqueta: 'USD', contado: conteo.conteo_final_usd, deja: fondoSiguiente.fondo_siguiente_usd },
+                { m: 'COP', etiqueta: 'COP', contado: conteo.conteo_final_cop, deja: fondoSiguiente.fondo_siguiente_cop },
+                { m: 'VES', etiqueta: 'Bs', contado: conteo.conteo_final_ves, deja: fondoSiguiente.fondo_siguiente_ves }
+              ].map(({ m, etiqueta, contado, deja }) => {
+                const aDepositar = (Number(contado) || 0) - (Number(deja) || 0);
+                if (aDepositar === 0 && !contado) return null;
+                const excede = aDepositar < 0;
+                return (
+                  <div key={m} style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '13px' }}>
+                    <span>{etiqueta}</span>
+                    <span className="cifra-dinero" style={{ fontWeight: 700, color: excede ? 'var(--rojo-cerveloza)' : 'inherit' }}>
+                      {excede ? 'Dejás más de lo contado' : aDepositar.toFixed(2)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
           <label style={estiloLabel}>Notas (opcional)</label>
           <textarea
