@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import api from '../api/axios';
 import ReciboCierreImprimible from '../components/ReciboCierreImprimible';
 import { imprimirDocumento } from '../utils/imprimir';
+import { useNavigate } from 'react-router-dom';
 
 const MONEDAS = ['USD', 'COP', 'VES'];
 
@@ -22,6 +23,7 @@ function colorDiferencia(valor) {
 }
 
 function Caja() {
+  const navigate = useNavigate();
   const [sesion, setSesion] = useState(null);
   const [resumen, setResumen] = useState(null);
   const [movimientosDia, setMovimientosDia] = useState([]);
@@ -84,9 +86,22 @@ function Caja() {
 
   return (
     <div>
-      <h1 className="texto-display" style={{ fontSize: '22px', marginBottom: 'var(--espacio-lg)' }}>
-        Caja
-      </h1>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          marginBottom: 'var(--espacio-lg)',
+          flexWrap: 'wrap',
+          gap: 'var(--espacio-sm)'
+        }}
+      >
+        <h1 className="texto-display" style={{ fontSize: '22px' }}>Caja</h1>
+        {/* El Financiero es independiente de la caja: se entra con o sin turno abierto */}
+        <button onClick={() => navigate('/financiero')} style={estiloBotonSecundario}>
+          Ir al Financiero
+        </button>
+      </div>
 
       {cargando && <p style={{ color: 'var(--gris-concreto)' }}>Cargando...</p>}
 
