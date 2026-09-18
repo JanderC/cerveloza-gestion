@@ -17,6 +17,7 @@ import Caja from "./pages/Caja";
 import Clientes from "./pages/Clientes";
 import Colaboraciones from "./pages/Colaboraciones";
 import Financiero from "./pages/Financiero";
+import Bloques from "./pages/Bloques";
 
 
 function RutaProtegida({ children, rolesPermitidos }) {
