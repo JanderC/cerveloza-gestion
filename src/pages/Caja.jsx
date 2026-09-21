@@ -194,7 +194,7 @@ function Caja() {
 
           <div style={{ marginBottom: 'var(--espacio-xl)' }}>
             <h2 className="texto-display" style={{ fontSize: '16px', marginBottom: 'var(--espacio-sm)' }}>
-              Movimientos de hoy
+              Movimientos del turno
             </h2>
             {movimientosDia.length === 0 && (
               <p style={{ color: 'var(--gris-concreto)', fontSize: '14px' }}>Aún no hay movimientos en este turno.</p>
@@ -303,6 +303,7 @@ function Caja() {
       {mostrarModalCierre && sesion && (
         <ModalCierre
           sesion={sesion}
+          resumen={resumen}
           onCerrar={() => setMostrarModalCierre(false)}
           onGuardado={() => {
             setMostrarModalCierre(false);
@@ -519,7 +520,19 @@ function ModalMovimiento({ sesionId, onCerrar, onGuardado }) {
   );
 }
 
-function ModalCierre({ sesion, onCerrar, onGuardado }) {
+function ModalCierre({ sesion, resumen, onCerrar, onGuardado }) {
+  // Efectivo esperado por moneda, con la misma fórmula del backend.
+  // Se muestra junto a cada campo para que nadie deje una moneda sin contar.
+  function esperadoDe(moneda) {
+    if (!resumen) return 0;
+    const fondoInicial = Number(sesion[`fondo_inicial_${moneda.toLowerCase()}`]) || 0;
+    const ventasEfectivo = obtenerMonto(resumen.ventas_efectivo, moneda);
+    const ingresos = obtenerMonto(resumen.movimientos.filter((mv) => mv.tipo === 'ingreso'), moneda);
+    const egresos = obtenerMonto(resumen.movimientos.filter((mv) => mv.tipo === 'egreso'), moneda);
+    const abonos = obtenerMonto(resumen.abonos_efectivo, moneda);
+    return fondoInicial + ventasEfectivo + ingresos - egresos + abonos;
+  }
+
   const [conteo, setConteo] = useState({ conteo_final_usd: '', conteo_final_cop: '', conteo_final_ves: '' });
   // Efectivo que se deja físicamente en el cajón para abrir el próximo turno.
   // Lo que no se deja, se deposita automáticamente en el Financiero.
@@ -536,6 +549,24 @@ function ModalCierre({ sesion, onCerrar, onGuardado }) {
 
   async function manejarSubmit(e) {
     e.preventDefault();
+
+    // Si una moneda tiene efectivo esperado y el campo quedó vacío, se frena el cierre.
+    // Dejarlo pasar significa registrar un faltante falso y perder ese dinero:
+    // no se deposita en el Financiero porque el monto da cero.
+    const sinContar = [
+      { m: 'USD', etiqueta: 'USD', valor: conteo.conteo_final_usd },
+      { m: 'COP', etiqueta: 'COP', valor: conteo.conteo_final_cop },
+      { m: 'VES', etiqueta: 'Bs', valor: conteo.conteo_final_ves }
+    ].filter(({ m, valor }) => esperadoDe(m) > 0.005 && String(valor).trim() === '');
+
+    if (sinContar.length > 0) {
+      toast.error(
+        `Falta contar ${sinContar.map((x) => x.etiqueta).join(' y ')}. ` +
+        'Hay efectivo esperado en esa moneda: contalo o escribí 0 si de verdad no hay nada.'
+      );
+      return;
+    }
+
     if (!window.confirm('¿Confirmas el cierre de caja? Esta acción no se puede deshacer.')) return;
 
     setGuardando(true);
@@ -704,9 +735,9 @@ function ModalCierre({ sesion, onCerrar, onGuardado }) {
         </div>
 
         <div style={{ padding: 'var(--espacio-lg)' }}>
-          <CampoMonto etiqueta="Conteo final USD" valor={conteo.conteo_final_usd} onCambiar={(v) => setConteo((p) => ({ ...p, conteo_final_usd: v }))} />
-          <CampoMonto etiqueta="Conteo final COP" valor={conteo.conteo_final_cop} onCambiar={(v) => setConteo((p) => ({ ...p, conteo_final_cop: v }))} />
-          <CampoMonto etiqueta="Conteo final Bs" valor={conteo.conteo_final_ves} onCambiar={(v) => setConteo((p) => ({ ...p, conteo_final_ves: v }))} />
+          <CampoMonto etiqueta="Conteo final USD" valor={conteo.conteo_final_usd} onCambiar={(v) => setConteo((p) => ({ ...p, conteo_final_usd: v }))} esperado={esperadoDe('USD')} />
+          <CampoMonto etiqueta="Conteo final COP" valor={conteo.conteo_final_cop} onCambiar={(v) => setConteo((p) => ({ ...p, conteo_final_cop: v }))} esperado={esperadoDe('COP')} />
+          <CampoMonto etiqueta="Conteo final Bs" valor={conteo.conteo_final_ves} onCambiar={(v) => setConteo((p) => ({ ...p, conteo_final_ves: v }))} esperado={esperadoDe('VES')} />
 
           <div style={{ borderTop: 'var(--borde-fino)', paddingTop: 'var(--espacio-md)', marginTop: 'var(--espacio-md)', marginBottom: 'var(--espacio-md)' }}>
             <h3 className="texto-display" style={{ fontSize: '14px', marginBottom: '4px' }}>
@@ -765,11 +796,28 @@ function ModalCierre({ sesion, onCerrar, onGuardado }) {
   );
 }
 
-function CampoMonto({ etiqueta, valor, onCambiar }) {
+function CampoMonto({ etiqueta, valor, onCambiar, esperado }) {
+  const hayEfectivo = Number(esperado) > 0.005;
+  const sinContar = hayEfectivo && String(valor).trim() === '';
+
   return (
     <div style={{ marginBottom: 'var(--espacio-md)' }}>
       <label style={estiloLabel}>{etiqueta}</label>
-      <input type="number" step="0.01" value={valor} onChange={(e) => onCambiar(e.target.value)} placeholder="0.00" style={estiloInput} />
+      <input
+        type="number"
+        step="0.01"
+        value={valor}
+        onChange={(e) => onCambiar(e.target.value)}
+        placeholder="0.00"
+        style={{ ...estiloInput, borderColor: sinContar ? 'var(--rojo-cerveloza)' : undefined }}
+      />
+      {esperado !== undefined && (
+        <div style={{ fontSize: '12px', marginTop: '2px', color: sinContar ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)', fontWeight: sinContar ? 700 : 400 }}>
+          {hayEfectivo
+            ? `Esperado: ${Number(esperado).toFixed(2)}${sinContar ? ' — falta contar esta moneda' : ''}`
+            : 'Sin efectivo esperado en esta moneda'}
+        </div>
+      )}
     </div>
   );
 }
