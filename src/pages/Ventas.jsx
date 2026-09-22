@@ -569,6 +569,38 @@ function Ventas() {
         )}
       </div>
 
+      {!sesionCaja && !cargandoInicial && (
+        <div
+          className="superficie"
+          style={{
+            borderLeft: '4px solid var(--gris-concreto)',
+            padding: 'var(--espacio-md) var(--espacio-lg)',
+            marginBottom: 'var(--espacio-lg)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 'var(--espacio-sm)'
+          }}
+        >
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 600 }}>No hay una caja abierta</div>
+            <span style={{ fontSize: '12px', color: 'var(--gris-concreto)' }}>
+              Para registrar retiros o ingresos de efectivo y ver el cuadre, abrí un turno de caja.
+              Los pagos y retiros de tesorería se hacen en Financiero.
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--espacio-sm)' }}>
+            <button onClick={() => navigate('/financiero')} style={estiloBotonSecundario}>
+              Ir al Financiero
+            </button>
+            <button onClick={() => navigate('/caja')} style={estiloBotonSecundario}>
+              Abrir caja
+            </button>
+          </div>
+        </div>
+      )}
+
       {sesionCaja && (
         <div
           className="superficie"
