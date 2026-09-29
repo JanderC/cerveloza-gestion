@@ -120,7 +120,7 @@ function Tasas() {
             {tasaActual && (
               <div
                 style={{
-                  borderTop: '3px solid var(--grafito)',
+                  borderTop: '1px solid var(--linea)',
                   paddingTop: 'var(--espacio-md)',
                   marginBottom: 'var(--espacio-lg)'
                 }}
@@ -158,7 +158,7 @@ function Tasas() {
                           width: '90px',
                           padding: '4px 6px',
                           border: 'var(--borde-fino)',
-                          borderRadius: '2px',
+                          borderRadius: 'var(--radio-sm)',
                           fontFamily: 'var(--fuente-base)',
                           fontSize: '13px',
                           textAlign: 'right'
@@ -232,7 +232,7 @@ function Tasas() {
             </h2>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+                <tr style={{ borderBottom: '1px solid var(--linea)' }}>
                   <th style={estiloTh}>Fecha</th>
                   <th style={{ ...estiloTh, textAlign: 'right' }}>USD/VES</th>
                   <th style={{ ...estiloTh, textAlign: 'right' }}>USD/COP</th>
@@ -293,7 +293,7 @@ function CampoTexto({ etiqueta, valor, onCambiar, requerido }) {
           width: '100%',
           padding: '8px 10px',
           border: 'var(--borde-fino)',
-          borderRadius: '2px',
+          borderRadius: 'var(--radio-sm)',
           fontFamily: 'var(--fuente-base)',
           fontSize: '14px',
           boxSizing: 'border-box'
@@ -320,7 +320,7 @@ const estiloBotonPrimario = {
   backgroundColor: 'var(--rojo-cerveloza)',
   color: 'var(--blanco-hueso)',
   border: 'none',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)',
   fontWeight: 600,
   fontSize: '14px',

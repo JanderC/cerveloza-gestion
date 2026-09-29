@@ -209,7 +209,7 @@ function Colaboraciones() {
             <div className="tabla-scroll">
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+                  <tr style={{ borderBottom: '1px solid var(--linea)' }}>
                     <th style={estiloTh}>Fecha</th>
                     <th style={estiloTh}>Producto</th>
                     <th style={{ ...estiloTh, textAlign: 'right' }}>Cant.</th>
@@ -241,7 +241,7 @@ function Colaboraciones() {
 }
 
 const estiloInput = {
-  width: '100%', padding: '10px 12px', border: 'var(--borde-fino)', borderRadius: '2px',
+  width: '100%', padding: '10px 12px', border: 'var(--borde-fino)', borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)', fontSize: '14px', boxSizing: 'border-box'
 };
 
@@ -259,7 +259,7 @@ const estiloTd = {
 
 const estiloBotonPrimario = {
   padding: '10px 16px', backgroundColor: 'var(--rojo-cerveloza)', color: 'var(--blanco-hueso)',
-  border: 'none', borderRadius: '2px', fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '14px', cursor: 'pointer'
+  border: 'none', borderRadius: 'var(--radio-sm)', fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '14px', cursor: 'pointer'
 };
 
 const estiloBotonTexto = {

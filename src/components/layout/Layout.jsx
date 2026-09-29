@@ -6,9 +6,9 @@ function Layout() {
   return (
     <div style={{ display: 'flex' }}>
       <Sidebar />
-      <div className="layout-contenido" style={{ flex: 1, minHeight: '100vh' }}>
+      <div className="layout-contenido">
         <Navbar />
-        <main className="layout-main" style={{ padding: 'var(--espacio-lg)' }}>
+        <main className="layout-main">
           <Outlet />
         </main>
       </div>

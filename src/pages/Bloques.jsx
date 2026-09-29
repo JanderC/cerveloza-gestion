@@ -150,7 +150,7 @@ function Bloques() {
           <div className="tabla-scroll">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+                <tr style={{ borderBottom: '1px solid var(--linea)' }}>
                   <th style={estiloTh}>Bloque</th>
                   <th style={estiloTh}>Estado</th>
                   <th style={estiloTh}>Apertura</th>
@@ -175,7 +175,7 @@ function Bloques() {
                           fontSize: '10px',
                           color: b.estado === 'abierto' ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
                           border: `1px solid ${b.estado === 'abierto' ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)'}`,
-                          borderRadius: '2px',
+                          borderRadius: 'var(--radio-sm)',
                           padding: '0 4px',
                           textTransform: 'uppercase'
                         }}
@@ -338,7 +338,7 @@ const estiloOverlay = {
 const estiloInput = {
   padding: '8px 10px',
   border: 'var(--borde-fino)',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)',
   fontSize: '14px',
   boxSizing: 'border-box'
@@ -361,7 +361,7 @@ const estiloBotonPrimario = {
   backgroundColor: 'var(--rojo-cerveloza)',
   color: 'var(--blanco-hueso)',
   border: 'none',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)',
   fontWeight: 600,
   fontSize: '14px',
@@ -371,7 +371,7 @@ const estiloBotonSecundario = {
   padding: '10px 16px',
   backgroundColor: 'transparent',
   border: 'var(--borde-fino)',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)',
   fontWeight: 600,
   fontSize: '13px',

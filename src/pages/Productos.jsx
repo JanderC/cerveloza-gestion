@@ -214,7 +214,7 @@ function Productos() {
           <div className="tabla-scroll">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+                <tr style={{ borderBottom: '1px solid var(--linea)' }}>
                   <th style={{ ...estiloTh, width: '48px' }}></th>
                   <th style={estiloTh}>Código</th>
                   <th style={estiloTh}>Categoría</th>
@@ -262,7 +262,7 @@ function Productos() {
                             fontSize: '10px',
                             color: 'var(--rojo-cerveloza)',
                             border: '1px solid var(--rojo-cerveloza)',
-                            borderRadius: '2px',
+                            borderRadius: 'var(--radio-sm)',
                             padding: '0 4px'
                           }}
                         >
@@ -718,7 +718,7 @@ const estiloInput = {
   width: '100%',
   padding: '10px 12px',
   border: 'var(--borde-fino)',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)',
   fontSize: '14px',
   boxSizing: 'border-box'
@@ -751,7 +751,7 @@ const estiloBotonPrimario = {
   backgroundColor: 'var(--rojo-cerveloza)',
   color: 'var(--blanco-hueso)',
   border: 'none',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)',
   fontWeight: 600,
   fontSize: '14px',
@@ -763,7 +763,7 @@ const estiloBotonSecundario = {
   backgroundColor: 'transparent',
   color: 'var(--grafito)',
   border: 'var(--borde-fino)',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)',
   fontSize: '14px',
   cursor: 'pointer'

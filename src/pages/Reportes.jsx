@@ -142,7 +142,7 @@ function Reportes() {
                     fontWeight: 600,
                     fontSize: '14px',
                     cursor: 'pointer',
-                    borderRadius: '2px'
+                    borderRadius: 'var(--radio-sm)'
                   }}
                 >
                   {m}
@@ -296,7 +296,7 @@ function RankingProductos({ titulo, subtitulo, productos, totalProductos, pagina
         <div className="tabla-scroll">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+              <tr style={{ borderBottom: '1px solid var(--linea)' }}>
                 <th style={estiloTh}></th>
                 <th style={estiloTh}>Producto</th>
                 <th style={{ ...estiloTh, textAlign: 'right' }}>Cant.</th>
@@ -412,7 +412,7 @@ function CampoFecha({ etiqueta, valor, onCambiar }) {
         type="date"
         value={valor}
         onChange={(e) => onCambiar(e.target.value)}
-        style={{ padding: '8px 10px', border: 'var(--borde-fino)', borderRadius: '2px', fontFamily: 'var(--fuente-base)', fontSize: '14px' }}
+        style={{ padding: '8px 10px', border: 'var(--borde-fino)', borderRadius: 'var(--radio-sm)', fontFamily: 'var(--fuente-base)', fontSize: '14px' }}
       />
     </div>
   );
@@ -428,7 +428,7 @@ const estiloLabelMoneda = {
 };
 
 const estiloKpi = {
-  borderTop: '3px solid var(--grafito)',
+  borderTop: '1px solid var(--linea)',
   borderRight: 'var(--borde-fino)',
   padding: 'var(--espacio-lg)'
 };
@@ -457,7 +457,7 @@ const estiloBotonPrimario = {
   backgroundColor: 'var(--rojo-cerveloza)',
   color: 'var(--blanco-hueso)',
   border: 'none',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)',
   fontWeight: 600,
   fontSize: '14px',
@@ -469,7 +469,7 @@ const estiloBotonSecundario = {
   backgroundColor: 'transparent',
   color: 'var(--grafito)',
   border: 'var(--borde-fino)',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)',
   fontSize: '14px',
   cursor: 'pointer'

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import api from '../api/axios';
+import { metodosParaMoneda, ajustarMetodo } from '../utils/metodosPago';
 
 
 const MONEDAS = ['USD', 'COP', 'VES'];
@@ -94,7 +95,7 @@ function Clientes() {
         <div className="tabla-scroll">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+              <tr style={{ borderBottom: '1px solid var(--linea)' }}>
                 <th style={estiloTh}>Cliente</th>
                 <th style={estiloTh}>Teléfono</th>
                 <th style={estiloTh}>Debe</th>
@@ -117,7 +118,7 @@ function Clientes() {
                             color: 'var(--rojo-cerveloza)',
                             border: '1px solid var(--rojo-cerveloza)',
                             padding: '2px 8px',
-                            borderRadius: '2px'
+                            borderRadius: 'var(--radio-sm)'
                           }}
                         >
                           {s.saldo.toFixed(2)} {etiquetaMoneda(s.moneda)}
@@ -289,7 +290,7 @@ function ModalAbono({ cliente, sesionCajaId, onCerrar, onGuardado }) {
     api.get('/metodos-pago').then((r) => {
       const soloPago = r.data.filter((m) => !m.es_credito);
       setMetodosPago(soloPago);
-      setForm((prev) => ({ ...prev, metodo_pago_id: soloPago[0]?.id || '' }));
+      setForm((prev) => ({ ...prev, metodo_pago_id: ajustarMetodo(soloPago, prev.moneda, '') }));
     });
   }, []);
 
@@ -340,13 +341,13 @@ function ModalAbono({ cliente, sesionCajaId, onCerrar, onGuardado }) {
                   <button
                     key={m}
                     type="button"
-                    onClick={() => setForm((p) => ({ ...p, moneda: m }))}
+                    onClick={() => setForm((p) => ({ ...p, moneda: m, metodo_pago_id: ajustarMetodo(metodosPago, m, p.metodo_pago_id) }))}
                     style={{
                       flex: 1, padding: '8px', border: 'var(--borde-fino)',
                       borderColor: form.moneda === m ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
                       backgroundColor: form.moneda === m ? 'var(--rojo-cerveloza)' : 'transparent',
                       color: form.moneda === m ? 'var(--blanco-hueso)' : 'var(--grafito)',
-                      fontFamily: 'var(--fuente-base)', fontSize: '13px', cursor: 'pointer', borderRadius: '2px'
+                      fontFamily: 'var(--fuente-base)', fontSize: '13px', cursor: 'pointer', borderRadius: 'var(--radio-sm)'
                     }}
                   >
                     {etiquetaMoneda(m)}
@@ -370,7 +371,7 @@ function ModalAbono({ cliente, sesionCajaId, onCerrar, onGuardado }) {
                 borderColor: modo === 'completo' ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
                 backgroundColor: modo === 'completo' ? 'var(--rojo-cerveloza)' : 'transparent',
                 color: modo === 'completo' ? 'var(--blanco-hueso)' : 'var(--grafito)',
-                fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', borderRadius: '2px'
+                fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', borderRadius: 'var(--radio-sm)'
               }}
             >
               Pago completo
@@ -383,7 +384,7 @@ function ModalAbono({ cliente, sesionCajaId, onCerrar, onGuardado }) {
                 borderColor: modo === 'parcial' ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
                 backgroundColor: modo === 'parcial' ? 'var(--rojo-cerveloza)' : 'transparent',
                 color: modo === 'parcial' ? 'var(--blanco-hueso)' : 'var(--grafito)',
-                fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', borderRadius: '2px'
+                fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', borderRadius: 'var(--radio-sm)'
               }}
             >
               Abono parcial
@@ -423,7 +424,7 @@ function ModalAbono({ cliente, sesionCajaId, onCerrar, onGuardado }) {
 
           <label style={estiloLabel}>Método de pago</label>
           <select value={form.metodo_pago_id} onChange={(e) => setForm((p) => ({ ...p, metodo_pago_id: e.target.value }))} style={estiloInput}>
-            {metodosPago.map((m) => (
+            {metodosParaMoneda(metodosPago, form.moneda).map((m) => (
               <option key={m.id} value={m.id}>{m.nombre}</option>
             ))}
           </select>
@@ -502,7 +503,7 @@ const estiloLabel = {
 };
 
 const estiloInput = {
-  width: '100%', padding: '10px 12px', border: 'var(--borde-fino)', borderRadius: '2px',
+  width: '100%', padding: '10px 12px', border: 'var(--borde-fino)', borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)', fontSize: '14px', boxSizing: 'border-box'
 };
 
@@ -516,12 +517,12 @@ const estiloTd = {
 
 const estiloBotonPrimario = {
   padding: '10px 16px', backgroundColor: 'var(--rojo-cerveloza)', color: 'var(--blanco-hueso)',
-  border: 'none', borderRadius: '2px', fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '14px', cursor: 'pointer'
+  border: 'none', borderRadius: 'var(--radio-sm)', fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '14px', cursor: 'pointer'
 };
 
 const estiloBotonSecundario = {
   padding: '10px 16px', backgroundColor: 'transparent', color: 'var(--grafito)',
-  border: 'var(--borde-fino)', borderRadius: '2px', fontFamily: 'var(--fuente-base)', fontSize: '14px', cursor: 'pointer'
+  border: 'var(--borde-fino)', borderRadius: 'var(--radio-sm)', fontFamily: 'var(--fuente-base)', fontSize: '14px', cursor: 'pointer'
 };
 
 const estiloBotonTexto = {

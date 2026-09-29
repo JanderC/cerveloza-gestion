@@ -5,6 +5,7 @@ import api from '../api/axios';
 import ReciboImprimible from '../components/ReciboImprimible';
 import { imprimirDocumento } from '../utils/imprimir';
 import { useNavigate } from 'react-router-dom';
+import { metodosParaMoneda, metodoPorDefecto, ajustarMetodo } from '../utils/metodosPago';
 
 const MONEDAS = ['USD', 'COP', 'VES'];
 
@@ -87,7 +88,7 @@ function Ventas() {
       setPagos((prev) =>
         prev.length > 0
           ? prev
-          : [{ moneda: monedaVenta, metodo_pago_id: respMetodos.data[0]?.id || '', monto: '', referencia: '', autoCalculado: true }]
+          : [{ moneda: monedaVenta, metodo_pago_id: metodoPorDefecto(respMetodos.data, monedaVenta), monto: '', referencia: '', autoCalculado: true }]
       );
     } catch (error) {
       toast.error('No se pudo cargar productos, tasa o métodos de pago.');
@@ -253,12 +254,16 @@ function Ventas() {
         }
 
         if (campo === 'moneda') {
+          // En Bs solo se cobra por punto de venta; al salir de Bs vuelve al método por defecto
+          const metodo_pago_id = pago.moneda === 'VES' && valor !== 'VES'
+            ? metodoPorDefecto(metodosPago, valor)
+            : ajustarMetodo(metodosPago, valor, pago.metodo_pago_id);
           if (pago.autoCalculado) {
             const restanteUSD = calcularRestanteUSD(index);
             const montoRecalculado = convertirDesdeUSD(restanteUSD, valor);
-            return { ...pago, moneda: valor, monto: montoRecalculado > 0 ? montoRecalculado.toFixed(2) : '' };
+            return { ...pago, moneda: valor, metodo_pago_id, monto: montoRecalculado > 0 ? montoRecalculado.toFixed(2) : '' };
           }
-          return { ...pago, moneda: valor };
+          return { ...pago, moneda: valor, metodo_pago_id };
         }
 
         return { ...pago, [campo]: valor };
@@ -274,7 +279,7 @@ function Ventas() {
       ...prev,
       {
         moneda: monedaVenta,
-        metodo_pago_id: metodosPago[0]?.id || '',
+        metodo_pago_id: metodoPorDefecto(metodosPago, monedaVenta),
         monto: montoSugerido > 0 ? montoSugerido.toFixed(2) : '',
         referencia: '',
         autoCalculado: true
@@ -290,7 +295,7 @@ function Ventas() {
     setMonedaVenta(nuevaMoneda);
     localStorage.setItem('cerveloza_moneda_venta', nuevaMoneda);
     if (pagos.length === 1 && !pagos[0].monto) {
-      setPagos([{ ...pagos[0], moneda: nuevaMoneda }]);
+      setPagos([{ ...pagos[0], moneda: nuevaMoneda, metodo_pago_id: metodoPorDefecto(metodosPago, nuevaMoneda) }]);
     }
   }
 
@@ -316,7 +321,9 @@ function Ventas() {
   }
 
   function pagarCompleto() {
-  const metodoDefault = pagos[0]?.metodo_pago_id || metodosPago.find((m) => !m.es_credito)?.id || '';
+  const metodoDefault = pagos[0]?.moneda === monedaVenta
+    ? ajustarMetodo(metodosPago, monedaVenta, pagos[0]?.metodo_pago_id)
+    : metodoPorDefecto(metodosPago, monedaVenta);
   setPagos([
     {
       moneda: monedaVenta,
@@ -405,7 +412,7 @@ function Ventas() {
       }
 
       setCarrito([]);
-      setPagos([{ moneda: monedaVenta, metodo_pago_id: metodosPago[0]?.id || '', monto: '', referencia: '', autoCalculado: true }]);
+      setPagos([{ moneda: monedaVenta, metodo_pago_id: metodoPorDefecto(metodosPago, monedaVenta), monto: '', referencia: '', autoCalculado: true }]);
       setClienteSeleccionado(null);
       cargarDatosIniciales();
     } catch (error) {
@@ -471,61 +478,60 @@ function Ventas() {
           justifyContent: 'space-between',
           alignItems: 'flex-end',
           marginBottom: 'var(--espacio-lg)',
-          borderBottom: '3px solid var(--grafito)',
-          paddingBottom: 'var(--espacio-md)',
           flexWrap: 'wrap',
           gap: 'var(--espacio-md)'
         }}
       >
-        <h1 className="texto-display" style={{ fontSize: '22px' }}>Nueva venta</h1>
+        <div>
+          <h1 className="texto-display" style={{ fontSize: '22px' }}>Nueva venta</h1>
+          <p style={{ fontSize: '13px', color: 'var(--gris-concreto)', margin: '6px 0 0' }}>
+            Busca productos, cobra en cualquier moneda y lleva el cuadre del turno
+          </p>
+        </div>
 
-        <div style={{ textAlign: 'right' }}>
-          <label style={{ display: 'block', fontSize: '11px', color: 'var(--gris-concreto)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Vendiendo en
-          </label>
-          <div style={{ display: 'flex', gap: '4px' }}>
-            {MONEDAS.map((m) => (
-              <button
-                key={m}
-                onClick={() => cambiarMonedaVenta(m)}
-                style={{
-                  padding: '8px 14px',
-                  border: 'var(--borde-fino)',
-                  borderColor: monedaVenta === m ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
-                  backgroundColor: monedaVenta === m ? 'var(--rojo-cerveloza)' : 'transparent',
-                  color: monedaVenta === m ? 'var(--blanco-hueso)' : 'var(--grafito)',
-                  fontFamily: 'var(--fuente-base)',
-                  fontWeight: 600,
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  borderRadius: '2px'
-                }}
-              >
-                {etiquetaMoneda(m)}
-              </button>
-            ))}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'var(--espacio-sm)', flexWrap: 'wrap' }}>
+          <button onClick={() => navigate('/caja')} style={{ ...estiloBotonSecundario, height: '42px', padding: '0 16px' }}>
+            Ir a Caja
+          </button>
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', color: 'var(--gris-concreto)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>
+              Vendiendo en
+            </label>
+            <div
+              style={{
+                display: 'inline-flex',
+                gap: '2px',
+                padding: '4px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--superficie)',
+                border: '1px solid var(--linea)',
+                boxShadow: 'var(--sombra-xs)'
+              }}
+            >
+              {MONEDAS.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => cambiarMonedaVenta(m)}
+                  style={{
+                    minWidth: '58px',
+                    padding: '7px 14px',
+                    border: 'none',
+                    backgroundColor: monedaVenta === m ? 'var(--rojo-cerveloza)' : 'rgba(0,0,0,0)',
+                    color: monedaVenta === m ? 'var(--blanco-hueso)' : 'var(--gris-concreto)',
+                    fontFamily: 'var(--fuente-base)',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    borderRadius: '9px'
+                  }}
+                >
+                  {etiquetaMoneda(m)}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-
-      <button
-        onClick={() => navigate('/caja')}
-        style={{
-          padding: '8px 14px',
-          border: 'var(--borde-fino)',
-          backgroundColor: 'transparent',
-          color: 'var(--grafito)',
-          fontFamily: 'var(--fuente-base)',
-          fontWeight: 600,
-          fontSize: '13px',
-          cursor: 'pointer',
-          borderRadius: '2px',
-          alignSelf: 'flex-end',
-          marginBottom: 'var(--espacio-md)'
-        }}
-      >
-        Ir a Caja
-      </button>
 
       <div
         className="superficie"
@@ -698,7 +704,7 @@ function Ventas() {
                   />
 
                   {diferencia !== null && Math.abs(diferencia) < 0.05 && (
-                    <p style={{ fontSize: '13px', color: '#2e7d32', fontWeight: 700, marginTop: '6px' }}>
+                    <p style={{ fontSize: '13px', color: 'var(--verde)', fontWeight: 700, marginTop: '6px' }}>
                       Cuadra perfecto ✓
                     </p>
                   )}
@@ -810,7 +816,7 @@ function Ventas() {
             <div className="tabla-scroll">
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+                  <tr style={{ borderBottom: '1px solid var(--linea)' }}>
                     <th style={estiloTh}>Producto</th>
                     <th style={{ ...estiloTh, textAlign: 'center' }}>Cant.</th>
                     <th style={{ ...estiloTh, textAlign: 'right' }}>Subtotal ({etiquetaMoneda(monedaVenta)})</th>
@@ -855,7 +861,7 @@ function Ventas() {
 
           <div
             style={{
-              borderTop: '3px solid var(--grafito)',
+              borderTop: '1px solid var(--linea)',
               marginTop: 'var(--espacio-lg)',
               paddingTop: 'var(--espacio-md)'
             }}
@@ -925,7 +931,7 @@ function Ventas() {
                 <div className="tabla-scroll">
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+                      <tr style={{ borderBottom: '1px solid var(--linea)' }}>
                         <th style={estiloTh}>Hora</th>
                         <th style={estiloTh}>Folio</th>
                         <th style={estiloTh}>Vendedor / Concepto</th>
@@ -948,7 +954,7 @@ function Ventas() {
                               <td style={estiloTd}>
                                 {v.numero_venta}
                                 {v.estado === 'fiado' && (
-                                  <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--rojo-cerveloza)', border: '1px solid var(--rojo-cerveloza)', borderRadius: '2px', padding: '0 4px' }}>
+                                  <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--rojo-cerveloza)', border: '1px solid var(--rojo-cerveloza)', borderRadius: 'var(--radio-sm)', padding: '0 4px' }}>
                                     FIADO
                                   </span>
                                 )}
@@ -969,7 +975,7 @@ function Ventas() {
 
                         // Fila de retiro o ingreso manual de caja
                         const ev = f.movimiento;
-                        const colorMonto = ev.tipo === 'egreso' ? 'var(--rojo-cerveloza)' : '#2e7d32';
+                        const colorMonto = ev.tipo === 'egreso' ? 'var(--rojo-cerveloza)' : 'var(--verde)';
                         const signo = ev.tipo === 'egreso' ? '-' : '+';
                         return (
                           <tr key={`mov-${i}`} style={{ borderBottom: 'var(--borde-fino)', backgroundColor: 'var(--gris-humo)' }}>
@@ -980,7 +986,7 @@ function Ventas() {
                                   fontSize: '10px',
                                   color: colorMonto,
                                   border: `1px solid ${colorMonto}`,
-                                  borderRadius: '2px',
+                                  borderRadius: 'var(--radio-sm)',
                                   padding: '0 4px'
                                 }}
                               >
@@ -1078,7 +1084,7 @@ function Ventas() {
           onChange={(e) => actualizarPago(index, 'metodo_pago_id', e.target.value)}
           style={{ ...estiloInput, flex: 1 }}
         >
-          {metodosPago.filter((m) => !m.es_credito).map((m) => (
+          {metodosParaMoneda(metodosPago, pago.moneda).map((m) => (
             <option key={m.id} value={m.id}>{m.nombre}</option>
           ))}
         </select>
@@ -1099,6 +1105,12 @@ function Ventas() {
           </button>
         )}
       </div>
+
+      {pago.moneda === 'VES' && (
+        <p style={{ fontSize: '11px', color: 'var(--gris-concreto)', margin: '4px 0 0' }}>
+          Los pagos en Bs se cobran por punto de venta.
+        </p>
+      )}
 
       {requiereReferencia && (
         <input
@@ -1496,7 +1508,7 @@ function ModalMovimientoCaja({ sesionId, tipoInicial, onCerrar, onGuardado }) {
 const estiloInput = {
   padding: '8px 10px',
   border: 'var(--borde-fino)',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)',
   fontSize: '14px',
   boxSizing: 'border-box'
@@ -1522,7 +1534,7 @@ const estiloBotonPrimario = {
   backgroundColor: 'var(--rojo-cerveloza)',
   color: 'var(--blanco-hueso)',
   border: 'none',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)',
   fontWeight: 600,
   fontSize: '14px',
@@ -1533,7 +1545,7 @@ const estiloBotonSecundario = {
   padding: '10px 16px',
   backgroundColor: 'transparent',
   border: 'var(--borde-fino)',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)',
   fontWeight: 600,
   fontSize: '13px',
@@ -1567,7 +1579,7 @@ const estiloBotonCantidad = {
   fontSize: '16px',
   fontWeight: 700,
   cursor: 'pointer',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   lineHeight: 1
 };
 

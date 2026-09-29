@@ -209,9 +209,9 @@ function Caja() {
                       fontWeight: 700,
                       color:
                         ev.tipo === 'venta' ? 'var(--grafito)' :
-                        ev.tipo === 'ingreso' || ev.tipo === 'abono' ? '#2e7d32' : 'var(--rojo-cerveloza)',
+                        ev.tipo === 'ingreso' || ev.tipo === 'abono' ? 'var(--verde)' : 'var(--rojo-cerveloza)',
                       border: '1px solid currentColor',
-                      borderRadius: '2px',
+                      borderRadius: 'var(--radio-sm)',
                       padding: '1px 6px',
                       marginRight: '8px'
                     }}
@@ -233,7 +233,7 @@ function Caja() {
                   ) : (
                     <span
                       className="cifra-dinero"
-                      style={{ fontSize: '14px', fontWeight: 600, color: ev.tipo === 'egreso' ? 'var(--rojo-cerveloza)' : '#2e7d32' }}
+                      style={{ fontSize: '14px', fontWeight: 600, color: ev.tipo === 'egreso' ? 'var(--rojo-cerveloza)' : 'var(--verde)' }}
                     >
                       {ev.tipo === 'egreso' ? '−' : '+'}{ev.monto.toFixed(2)} {etiquetaMoneda(ev.moneda)}
                     </span>
@@ -259,7 +259,7 @@ function Caja() {
           <div className="tabla-scroll">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+                <tr style={{ borderBottom: '1px solid var(--linea)' }}>
                   <th style={estiloTh}>Cierre</th>
                   <th style={estiloTh}>Cajero</th>
                   <th style={{ ...estiloTh, textAlign: 'right' }}>Dif. USD</th>
@@ -675,8 +675,8 @@ function ModalCierre({ sesion, resumen, onCerrar, onGuardado }) {
                   <span
                     style={{
                       fontSize: '9px', textTransform: 'uppercase', fontWeight: 700,
-                      color: ev.tipo === 'venta' ? 'var(--grafito)' : ev.tipo === 'ingreso' || ev.tipo === 'abono' ? '#2e7d32' : 'var(--rojo-cerveloza)',
-                      border: '1px solid currentColor', borderRadius: '2px', padding: '1px 5px', marginRight: '6px'
+                      color: ev.tipo === 'venta' ? 'var(--grafito)' : ev.tipo === 'ingreso' || ev.tipo === 'abono' ? 'var(--verde)' : 'var(--rojo-cerveloza)',
+                      border: '1px solid currentColor', borderRadius: 'var(--radio-sm)', padding: '1px 5px', marginRight: '6px'
                     }}
                   >
                     {ev.tipo}
@@ -694,7 +694,7 @@ function ModalCierre({ sesion, resumen, onCerrar, onGuardado }) {
                       {ev.ves > 0 && <div className="cifra-dinero" style={{ fontSize: '12px' }}>{ev.ves.toFixed(2)} Bs</div>}
                     </>
                   ) : (
-                    <span className="cifra-dinero" style={{ fontSize: '13px', fontWeight: 600, color: ev.tipo === 'egreso' ? 'var(--rojo-cerveloza)' : '#2e7d32' }}>
+                    <span className="cifra-dinero" style={{ fontSize: '13px', fontWeight: 600, color: ev.tipo === 'egreso' ? 'var(--rojo-cerveloza)' : 'var(--verde)' }}>
                       {ev.tipo === 'egreso' ? '−' : '+'}{ev.monto.toFixed(2)} {etiquetaMoneda(ev.moneda)}
                     </span>
                   )}
@@ -838,7 +838,7 @@ const estiloLabel = {
 };
 
 const estiloInput = {
-  width: '100%', padding: '10px 12px', border: 'var(--borde-fino)', borderRadius: '2px',
+  width: '100%', padding: '10px 12px', border: 'var(--borde-fino)', borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)', fontSize: '14px', boxSizing: 'border-box'
 };
 
@@ -852,12 +852,12 @@ const estiloTd = {
 
 const estiloBotonPrimario = {
   padding: '10px 16px', backgroundColor: 'var(--rojo-cerveloza)', color: 'var(--blanco-hueso)',
-  border: 'none', borderRadius: '2px', fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '14px', cursor: 'pointer'
+  border: 'none', borderRadius: 'var(--radio-sm)', fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '14px', cursor: 'pointer'
 };
 
 const estiloBotonSecundario = {
   padding: '10px 16px', backgroundColor: 'transparent', color: 'var(--grafito)',
-  border: 'var(--borde-fino)', borderRadius: '2px', fontFamily: 'var(--fuente-base)', fontSize: '14px', cursor: 'pointer'
+  border: 'var(--borde-fino)', borderRadius: 'var(--radio-sm)', fontFamily: 'var(--fuente-base)', fontSize: '14px', cursor: 'pointer'
 };
 
 const estiloTituloSeccion = {

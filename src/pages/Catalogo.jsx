@@ -42,7 +42,7 @@ function Catalogo() {
           maxWidth: '360px',
           padding: '10px 12px',
           border: 'var(--borde-fino)',
-          borderRadius: '2px',
+          borderRadius: 'var(--radio-sm)',
           fontFamily: 'var(--fuente-base)',
           fontSize: '14px',
           marginBottom: 'var(--espacio-lg)',

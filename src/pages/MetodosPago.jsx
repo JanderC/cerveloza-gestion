@@ -77,7 +77,7 @@ function MetodosPago() {
             flex: 1,
             padding: '10px 12px',
             border: 'var(--borde-fino)',
-            borderRadius: '2px',
+            borderRadius: 'var(--radio-sm)',
             fontFamily: 'var(--fuente-base)',
             fontSize: '14px',
             boxSizing: 'border-box'
@@ -93,7 +93,7 @@ function MetodosPago() {
       {!cargando && (
         <table style={{ width: '100%', maxWidth: '480px', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid var(--grafito)' }}>
+            <tr style={{ borderBottom: '1px solid var(--linea)' }}>
               <th style={estiloTh}>Nombre</th>
               <th style={estiloTh}></th>
             </tr>
@@ -143,7 +143,7 @@ const estiloBotonPrimario = {
   backgroundColor: 'var(--rojo-cerveloza)',
   color: 'var(--blanco-hueso)',
   border: 'none',
-  borderRadius: '2px',
+  borderRadius: 'var(--radio-sm)',
   fontFamily: 'var(--fuente-base)',
   fontWeight: 600,
   fontSize: '14px',
