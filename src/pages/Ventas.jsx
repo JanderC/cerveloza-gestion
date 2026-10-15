@@ -107,12 +107,12 @@ function Ventas() {
     }
   }
 
-  // Detalle individual (con concepto) de cada retiro/ingreso manual del turno,
+  // Detalle individual (con concepto) de cada retiro/ingreso manual y abono de cliente del turno,
   // para mostrar exactamente qué se vendió y qué se retiró, no solo el total agregado
   async function cargarMovimientosDiaCaja(id) {
     try {
       const respuesta = await api.get(`/caja/${id}/movimientos-dia`);
-      setMovimientosDiaCaja(respuesta.data.filter((ev) => ev.tipo === 'ingreso' || ev.tipo === 'egreso'));
+      setMovimientosDiaCaja(respuesta.data.filter((ev) => ['ingreso', 'egreso', 'abono'].includes(ev.tipo)));
     } catch (error) {
       // silencioso — no debe bloquear el flujo de ventas si esto falla
     }
@@ -449,7 +449,7 @@ function Ventas() {
       venta: v
     })),
     ...movimientosDiaCaja.map((ev) => ({
-      tipoFila: ev.tipo, // 'ingreso' | 'egreso'
+      tipoFila: ev.tipo, // 'ingreso' | 'egreso' | 'abono'
       fecha: ev.fecha,
       movimiento: ev
     }))
@@ -649,6 +649,7 @@ function Ventas() {
               const ventasEfectivo = obtenerMontoCaja(resumenCaja.ventas_efectivo, m);
               const ingresos = obtenerMontoCaja(resumenCaja.movimientos.filter((mv) => mv.tipo === 'ingreso'), m);
               const egresos = obtenerMontoCaja(resumenCaja.movimientos.filter((mv) => mv.tipo === 'egreso'), m);
+              const abonos = obtenerMontoCaja(resumenCaja.abonos_efectivo, m);
               const esperado = esperadoCaja(m);
               if (esperado === 0 && fondoInicial === 0) return null;
 
@@ -674,6 +675,12 @@ function Ventas() {
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span>+ Ingresos</span>
                         <span className="cifra-dinero">{ingresos.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {abonos > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>+ Abonos de clientes</span>
+                        <span className="cifra-dinero">{abonos.toFixed(2)}</span>
                       </div>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -902,7 +909,7 @@ function Ventas() {
                 {totalesHoyPorMoneda.usd > 0 && ` · $${totalesHoyPorMoneda.usd.toFixed(2)} USD`}
                 {totalesHoyPorMoneda.cop > 0 && ` · ${totalesHoyPorMoneda.cop.toFixed(2)} COP`}
                 {totalesHoyPorMoneda.ves > 0 && ` · ${totalesHoyPorMoneda.ves.toFixed(2)} Bs`}
-                {movimientosDiaCaja.length > 0 && ` · ${movimientosDiaCaja.length} retiro/ingreso${movimientosDiaCaja.length !== 1 ? 's' : ''}`}
+                {movimientosDiaCaja.length > 0 && ` · ${movimientosDiaCaja.length} movimiento${movimientosDiaCaja.length !== 1 ? 's' : ''} de caja`}
               </span>
             </div>
 
@@ -990,7 +997,7 @@ function Ventas() {
                                   padding: '0 4px'
                                 }}
                               >
-                                {ev.tipo === 'egreso' ? 'RETIRO' : 'INGRESO'}
+                                {ev.tipo === 'egreso' ? 'RETIRO' : ev.tipo === 'abono' ? 'ABONO' : 'INGRESO'}
                               </span>
                             </td>
                             <td style={estiloTd}>{ev.detalle}</td>
