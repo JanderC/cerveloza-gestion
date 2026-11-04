@@ -262,6 +262,9 @@ function ModalEstadoCuenta({ cliente, onCerrar }) {
               <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', margin: '4px 0 0' }}>
                 {new Date(m.fecha).toLocaleString()}
                 {m.metodo_nombre && ` · ${m.metodo_nombre}`}
+                {m.tipo === 'abono' && m.moneda_original && m.moneda_original !== m.moneda && (
+                  <span> · pagó {Number(m.monto_original).toFixed(2)} {etiquetaMoneda(m.moneda_original)}</span>
+                )}
                 {m.tipo === 'cargo' && Number(m.saldo_pendiente_original) <= 0.01 && (
                   <span style={{ color: 'var(--grafito)' }}> · Saldado ✓</span>
                 )}
@@ -279,42 +282,80 @@ function ModalEstadoCuenta({ cliente, onCerrar }) {
   );
 }
 
+// Misma conversión que usa el backend (utils/conversionMoneda.js), solo para mostrar
+// cuánto tiene que pagar el cliente en la moneda que elija. El backend recalcula al guardar.
+function convertirEntreMonedas(monto, origen, destino, tasa) {
+  if (origen === destino) return Number(monto);
+  if (!tasa) return 0;
+  const usdVes = tasa.ves_cop_manual ? Number(tasa.usd_cop) / Number(tasa.ves_cop) : Number(tasa.usd_ves);
+  const aUSD = { USD: 1, COP: 1 / Number(tasa.usd_cop), VES: 1 / usdVes };
+  const desdeUSD = { USD: 1, COP: Number(tasa.usd_cop), VES: usdVes };
+  return Number(monto) * aUSD[origen] * desdeUSD[destino];
+}
+
+function redondear2(n) {
+  return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+}
+
 function ModalAbono({ cliente, sesionCajaId, onCerrar, onGuardado }) {
   const monedasConDeuda = cliente.saldos.map((s) => s.moneda);
+  const monedaInicial = monedasConDeuda[0] || 'USD';
   const [modo, setModo] = useState('completo'); // 'completo' | 'parcial'
-  const [form, setForm] = useState({ moneda: monedasConDeuda[0] || 'USD', monto: '', metodo_pago_id: '' });
+  const [form, setForm] = useState({ moneda: monedaInicial, monedaPago: monedaInicial, monto: '', metodo_pago_id: '' });
   const [metodosPago, setMetodosPago] = useState([]);
+  const [tasa, setTasa] = useState(null);
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
     api.get('/metodos-pago').then((r) => {
       const soloPago = r.data.filter((m) => !m.es_credito);
       setMetodosPago(soloPago);
-      setForm((prev) => ({ ...prev, metodo_pago_id: ajustarMetodo(soloPago, prev.moneda, '') }));
+      setForm((prev) => ({ ...prev, metodo_pago_id: ajustarMetodo(soloPago, prev.monedaPago, '', 'abono') }));
     });
+    api.get('/tasas/actual').then((r) => setTasa(r.data)).catch(() => {});
   }, []);
 
   const saldoActual = cliente.saldos.find((s) => s.moneda === form.moneda)?.saldo || 0;
+  const pagaEnOtraMoneda = form.monedaPago !== form.moneda;
+  const saldoEnMonedaPago = redondear2(convertirEntreMonedas(saldoActual, form.moneda, form.monedaPago, tasa));
+  const montoParcialEnDeuda = redondear2(convertirEntreMonedas(form.monto || 0, form.monedaPago, form.moneda, tasa));
+
+  function cambiarMonedaPago(m) {
+    setForm((p) => ({ ...p, monedaPago: m, monto: '', metodo_pago_id: ajustarMetodo(metodosPago, m, p.metodo_pago_id, 'abono') }));
+  }
 
   async function manejarSubmit(e) {
     e.preventDefault();
 
-    const montoFinal = modo === 'completo' ? saldoActual : Number(form.monto);
+    if (pagaEnOtraMoneda && !tasa) {
+      toast.error('No se pudo cargar la tasa de cambio. Intenta de nuevo.');
+      return;
+    }
 
-    if (!montoFinal || montoFinal <= 0) {
+    const montoPago = modo === 'completo' ? saldoEnMonedaPago : Number(form.monto);
+    if (!montoPago || montoPago <= 0) {
       toast.error('Ingresa un monto válido');
       return;
     }
 
+    const datos = {
+      cliente_id: cliente.id,
+      moneda: form.moneda,
+      metodo_pago_id: Number(form.metodo_pago_id),
+      sesion_caja_id: sesionCajaId
+    };
+    if (pagaEnOtraMoneda) {
+      datos.moneda_pago = form.monedaPago;
+      datos.monto_pago = montoPago;
+      // En pago completo se manda el saldo exacto para que la deuda quede en 0, sin centavos sueltos
+      if (modo === 'completo') datos.monto = saldoActual;
+    } else {
+      datos.monto = montoPago;
+    }
+
     setGuardando(true);
     try {
-      await api.post('/clientes/abono', {
-        cliente_id: cliente.id,
-        moneda: form.moneda,
-        monto: montoFinal,
-        metodo_pago_id: Number(form.metodo_pago_id),
-        sesion_caja_id: sesionCajaId
-      });
+      await api.post('/clientes/abono', datos);
       toast.success(modo === 'completo' ? 'Deuda cancelada por completo' : 'Abono registrado');
       onGuardado();
     } catch (error) {
@@ -323,6 +364,14 @@ function ModalAbono({ cliente, sesionCajaId, onCerrar, onGuardado }) {
       setGuardando(false);
     }
   }
+
+  const estiloOpcion = (activa) => ({
+    flex: 1, padding: '10px', border: 'var(--borde-fino)',
+    borderColor: activa ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
+    backgroundColor: activa ? 'var(--rojo-cerveloza)' : 'transparent',
+    color: activa ? 'var(--blanco-hueso)' : 'var(--grafito)',
+    fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', borderRadius: 'var(--radio-sm)'
+  });
 
   return (
     <div style={estiloOverlay} onClick={onCerrar}>
@@ -341,14 +390,8 @@ function ModalAbono({ cliente, sesionCajaId, onCerrar, onGuardado }) {
                   <button
                     key={m}
                     type="button"
-                    onClick={() => setForm((p) => ({ ...p, moneda: m, metodo_pago_id: ajustarMetodo(metodosPago, m, p.metodo_pago_id) }))}
-                    style={{
-                      flex: 1, padding: '8px', border: 'var(--borde-fino)',
-                      borderColor: form.moneda === m ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
-                      backgroundColor: form.moneda === m ? 'var(--rojo-cerveloza)' : 'transparent',
-                      color: form.moneda === m ? 'var(--blanco-hueso)' : 'var(--grafito)',
-                      fontFamily: 'var(--fuente-base)', fontSize: '13px', cursor: 'pointer', borderRadius: 'var(--radio-sm)'
-                    }}
+                    onClick={() => setForm((p) => ({ ...p, moneda: m, monedaPago: m, monto: '', metodo_pago_id: ajustarMetodo(metodosPago, m, p.metodo_pago_id, 'abono') }))}
+                    style={{ ...estiloOpcion(form.moneda === m), fontWeight: 400, padding: '8px' }}
                   >
                     {etiquetaMoneda(m)}
                   </button>
@@ -361,32 +404,21 @@ function ModalAbono({ cliente, sesionCajaId, onCerrar, onGuardado }) {
             Debe: <strong className="cifra-dinero">{saldoActual.toFixed(2)} {etiquetaMoneda(form.moneda)}</strong>
           </p>
 
+          <label style={estiloLabel}>¿En qué moneda paga?</label>
+          <div style={{ display: 'flex', gap: '6px', marginBottom: 'var(--espacio-md)' }}>
+            {MONEDAS.map((m) => (
+              <button key={m} type="button" onClick={() => cambiarMonedaPago(m)} style={estiloOpcion(form.monedaPago === m)}>
+                {etiquetaMoneda(m)}
+              </button>
+            ))}
+          </div>
+
           {/* Selector de modo: completo o parcial, bien explícito */}
           <div style={{ display: 'flex', gap: '6px', marginBottom: 'var(--espacio-md)' }}>
-            <button
-              type="button"
-              onClick={() => setModo('completo')}
-              style={{
-                flex: 1, padding: '10px', border: 'var(--borde-fino)',
-                borderColor: modo === 'completo' ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
-                backgroundColor: modo === 'completo' ? 'var(--rojo-cerveloza)' : 'transparent',
-                color: modo === 'completo' ? 'var(--blanco-hueso)' : 'var(--grafito)',
-                fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', borderRadius: 'var(--radio-sm)'
-              }}
-            >
+            <button type="button" onClick={() => setModo('completo')} style={estiloOpcion(modo === 'completo')}>
               Pago completo
             </button>
-            <button
-              type="button"
-              onClick={() => setModo('parcial')}
-              style={{
-                flex: 1, padding: '10px', border: 'var(--borde-fino)',
-                borderColor: modo === 'parcial' ? 'var(--rojo-cerveloza)' : 'var(--gris-concreto)',
-                backgroundColor: modo === 'parcial' ? 'var(--rojo-cerveloza)' : 'transparent',
-                color: modo === 'parcial' ? 'var(--blanco-hueso)' : 'var(--grafito)',
-                fontFamily: 'var(--fuente-base)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', borderRadius: 'var(--radio-sm)'
-              }}
-            >
+            <button type="button" onClick={() => setModo('parcial')} style={estiloOpcion(modo === 'parcial')}>
               Abono parcial
             </button>
           </div>
@@ -397,34 +429,45 @@ function ModalAbono({ cliente, sesionCajaId, onCerrar, onGuardado }) {
                 backgroundColor: 'var(--gris-humo)',
                 borderLeft: '4px solid var(--rojo-cerveloza)',
                 padding: 'var(--espacio-md)',
-                marginBottom: 'var(--espacio-md)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'baseline'
+                marginBottom: 'var(--espacio-md)'
               }}
             >
-              <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>Va a pagar</span>
-              <span className="texto-display cifra-dinero" style={{ fontSize: '20px' }}>
-                {saldoActual.toFixed(2)} {etiquetaMoneda(form.moneda)}
-              </span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: '13px', color: 'var(--gris-concreto)' }}>Va a pagar</span>
+                <span className="texto-display cifra-dinero" style={{ fontSize: '20px' }}>
+                  {pagaEnOtraMoneda && !tasa ? '...' : saldoEnMonedaPago.toFixed(2)} {etiquetaMoneda(form.monedaPago)}
+                </span>
+              </div>
+              {pagaEnOtraMoneda && tasa && (
+                <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', margin: '6px 0 0', textAlign: 'right' }}>
+                  Equivale a {saldoActual.toFixed(2)} {etiquetaMoneda(form.moneda)} · tasa vigente
+                </p>
+              )}
             </div>
           ) : (
             <>
-              <label style={estiloLabel}>Monto a abonar ({etiquetaMoneda(form.moneda)})</label>
+              <label style={estiloLabel}>Monto a abonar ({etiquetaMoneda(form.monedaPago)})</label>
               <input
                 type="number"
                 step="0.01"
                 value={form.monto}
                 onChange={(e) => setForm((p) => ({ ...p, monto: e.target.value }))}
                 autoFocus
-                style={{ ...estiloInput, marginBottom: 'var(--espacio-md)' }}
+                style={{ ...estiloInput, marginBottom: pagaEnOtraMoneda ? '4px' : 'var(--espacio-md)' }}
               />
+              {pagaEnOtraMoneda && (
+                <p style={{ fontSize: '12px', color: 'var(--gris-concreto)', margin: '0 0 var(--espacio-md)' }}>
+                  {tasa
+                    ? <>Se descuentan <strong>{montoParcialEnDeuda.toFixed(2)} {etiquetaMoneda(form.moneda)}</strong> de la deuda · total en {etiquetaMoneda(form.monedaPago)}: {saldoEnMonedaPago.toFixed(2)}</>
+                    : 'Cargando tasa...'}
+                </p>
+              )}
             </>
           )}
 
           <label style={estiloLabel}>Método de pago</label>
           <select value={form.metodo_pago_id} onChange={(e) => setForm((p) => ({ ...p, metodo_pago_id: e.target.value }))} style={estiloInput}>
-            {metodosParaMoneda(metodosPago, form.moneda).map((m) => (
+            {metodosParaMoneda(metodosPago, form.monedaPago, 'abono').map((m) => (
               <option key={m.id} value={m.id}>{m.nombre}</option>
             ))}
           </select>
