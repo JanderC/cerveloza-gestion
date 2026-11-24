@@ -985,107 +985,87 @@ span[style*='font-size: 10px'][style*='border: 1px solid'] {
   }
 }
 
-/* ===== RECIBO TÉRMICO 80MM (impresión) ===== */
-.recibo-imprimible {
+
+/* ===== IMPRESIÓN: ticket térmico 80mm y reporte de cierre =====
+   utils/imprimir.js copia el documento a #zona-impresion, mide su alto y pide una página
+   de 80mm x ese alto. En pantalla los originales no se ven y #zona-impresion queda fuera
+   de la vista (pero con los mismos estilos que al imprimir, para que la medida sea exacta). */
+.recibo-imprimible,
+.reporte-imprimible {
   display: none;
 }
 
-/* Mientras se imprime (ver utils/imprimir.js) solo existe #zona-impresion:
-   el resto se quita del flujo para que el papel no salga del largo de la página. */
+#zona-impresion {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  background: #fff;
+}
+
+#zona-impresion .recibo-imprimible,
+#zona-impresion .reporte-imprimible {
+  display: block;
+  width: 80mm;
+  padding: 4mm;
+  letter-spacing: 0.2px;
+  color: #000;
+}
+
+#zona-impresion .recibo-imprimible {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+#zona-impresion .reporte-imprimible {
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+#zona-impresion .reporte-imprimible h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 3mm 0 2mm;
+}
+
+#zona-impresion .recibo-linea,
+#zona-impresion .reporte-linea {
+  border: none;
+  border-top: 2px dashed #000;
+  margin: 3mm 0;
+}
+
+#zona-impresion .recibo-fila,
+#zona-impresion .reporte-fila {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+#zona-impresion .reporte-fila {
+  gap: 8px;
+  font-weight: 700;
+}
+
 @media print {
   html,
   body.imprimiendo {
     height: auto !important;
     min-height: 0 !important;
+    margin: 0 !important;
     background: #fff !important;
   }
 
+  /* Solo existe el ticket: lo demás se quita del flujo para que no ocupe papel */
   body.imprimiendo > *:not(#zona-impresion) {
     display: none !important;
   }
 
-  #zona-impresion .recibo-imprimible,
-  #zona-impresion .reporte-imprimible {
-    position: static !important;
-  }
-}
-
-@media print {
-
-  body * {
-    visibility: hidden;
-  }
-
-  .recibo-imprimible,
-  .recibo-imprimible * {
-    visibility: visible;
-  }
-
-  .recibo-imprimible {
-    display: block;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 80mm;
-    padding: 4mm;
-    font-family: 'Consolas', 'Courier New', monospace;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-    line-height: 1.4;
-    color: #000;
-  }
-
-  .recibo-linea {
-    border: none;
-    border-top: 2px dashed #000;
-    margin: 3mm 0;
-  }
-
-  .recibo-fila {
-    display: flex;
-    justify-content: space-between;
-    gap: 6px;
-  }
-}
-
-.reporte-imprimible { display: none; }
-
-@media print {
-
-  .reporte-imprimible,
-  .reporte-imprimible * {
-    visibility: visible;
-  }
-
-  .reporte-imprimible {
-    display: block;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 80mm;
-    padding: 4mm;
-    font-family: 'Courier New', monospace;
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: 0.2px;
-    line-height: 1.5;
-    color: #000;
-  }
-  .reporte-imprimible h3 {
-    font-size: 17px;
-    font-weight: 700;
-    margin: 3mm 0 2mm;
-  }
-  .reporte-linea {
-    border: none;
-    border-top: 2px dashed #000;
-    margin: 3mm 0;
-  }
-  .reporte-fila {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    font-weight: 700;
+  #zona-impresion {
+    position: static;
+    left: auto;
   }
 }
