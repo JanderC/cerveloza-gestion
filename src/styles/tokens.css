@@ -986,10 +986,12 @@ span[style*='font-size: 10px'][style*='border: 1px solid'] {
 }
 
 
-/* ===== IMPRESIÓN: ticket térmico 80mm y reporte de cierre =====
-   utils/imprimir.js copia el documento a #zona-impresion, mide su alto y pide una página
-   de 80mm x ese alto. En pantalla los originales no se ven y #zona-impresion queda fuera
-   de la vista (pero con los mismos estilos que al imprimir, para que la medida sea exacta). */
+/* ===== IMPRESIÓN: ticket térmico y reporte de cierre =====
+   utils/imprimir.js copia el documento a #zona-impresion (clase .zona-impresion), mide su alto
+   y pide una página de <ancho del papel> x ese alto. En pantalla los originales no se ven y
+   #zona-impresion queda fuera de la vista, con los mismos estilos que al imprimir para que la
+   medida sea exacta. El módulo Impresora usa .zona-impresion para la vista previa.
+   --ticket-ancho y --ticket-escala vienen de la configuración (utils/configImpresora.js). */
 .recibo-imprimible,
 .reporte-imprimible {
   display: none;
@@ -999,53 +1001,58 @@ span[style*='font-size: 10px'][style*='border: 1px solid'] {
   position: absolute;
   left: -10000px;
   top: 0;
+}
+
+.zona-impresion {
   background: #fff;
 }
 
-#zona-impresion .recibo-imprimible,
-#zona-impresion .reporte-imprimible {
+.zona-impresion .recibo-imprimible,
+.zona-impresion .reporte-imprimible {
   display: block;
-  width: 80mm;
+  zoom: var(--ticket-escala, 1);
+  width: calc(var(--ticket-ancho, 80mm) / var(--ticket-escala, 1));
   padding: 4mm;
   letter-spacing: 0.2px;
   color: #000;
+  background: #fff;
 }
 
-#zona-impresion .recibo-imprimible {
+.zona-impresion .recibo-imprimible {
   font-family: 'Consolas', 'Courier New', monospace;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
 }
 
-#zona-impresion .reporte-imprimible {
+.zona-impresion .reporte-imprimible {
   font-family: 'Courier New', monospace;
   font-size: 16px;
   font-weight: 700;
   line-height: 1.5;
 }
 
-#zona-impresion .reporte-imprimible h3 {
+.zona-impresion .reporte-imprimible h3 {
   font-size: 17px;
   font-weight: 700;
   margin: 3mm 0 2mm;
 }
 
-#zona-impresion .recibo-linea,
-#zona-impresion .reporte-linea {
+.zona-impresion .recibo-linea,
+.zona-impresion .reporte-linea {
   border: none;
   border-top: 2px dashed #000;
   margin: 3mm 0;
 }
 
-#zona-impresion .recibo-fila,
-#zona-impresion .reporte-fila {
+.zona-impresion .recibo-fila,
+.zona-impresion .reporte-fila {
   display: flex;
   justify-content: space-between;
   gap: 6px;
 }
 
-#zona-impresion .reporte-fila {
+.zona-impresion .reporte-fila {
   gap: 8px;
   font-weight: 700;
 }

@@ -18,6 +18,7 @@ import Clientes from "./pages/Clientes";
 import Colaboraciones from "./pages/Colaboraciones";
 import Financiero from "./pages/Financiero";
 import Bloques from "./pages/Bloques";
+import Impresora from "./pages/Impresora";
 
 
 function RutaProtegida({ children, rolesPermitidos }) {
@@ -129,6 +130,7 @@ function AppRoutes() {
         />
 
         <Route path="/bloques" element={<RutaProtegida><Bloques /></RutaProtegida>} />
+        <Route path="impresora" element={<RutaProtegida rolesPermitidos={["admin", "cajero"]}><Impresora /></RutaProtegida>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

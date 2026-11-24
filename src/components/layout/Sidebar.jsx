@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   FiGrid, FiShoppingCart, FiBox, FiBookOpen, FiPieChart, FiUsers, FiTrendingUp, FiCreditCard,
-  FiDollarSign, FiUserCheck, FiGift, FiBriefcase, FiLayers, FiLogOut
+  FiDollarSign, FiUserCheck, FiGift, FiBriefcase, FiLayers, FiLogOut, FiPrinter
 } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 
@@ -14,6 +14,7 @@ export const enlaces = [
   { to: '/colaboraciones', icono: FiGift, titulo: 'Colaboraciones', roles: ['admin', 'cajero'], grupo: 'Operación' },
   { to: '/clientes', icono: FiUserCheck, titulo: 'Clientes', roles: ['admin', 'cajero'], grupo: 'Operación' },
   { to: '/catalogo', icono: FiBookOpen, titulo: 'Catálogo', roles: ['admin', 'cajero'], grupo: 'Operación' },
+  { to: '/impresora', icono: FiPrinter, titulo: 'Impresora', roles: ['admin', 'cajero'], grupo: 'Operación' },
   { to: '/productos', icono: FiBox, titulo: 'Productos', roles: ['admin'], grupo: 'Administración' },
   { to: '/tasas', icono: FiTrendingUp, titulo: 'Tasas', roles: ['admin'], grupo: 'Administración' },
   { to: '/reportes', icono: FiPieChart, titulo: 'Reportes', roles: ['admin'], grupo: 'Administración' },
