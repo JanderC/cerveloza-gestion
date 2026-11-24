@@ -1,17 +1,45 @@
-// Inserta la regla @page correcta justo antes de imprimir, y la quita después.
-// Esto evita que las reglas @page de distintos documentos (ticket 80mm vs reporte carta) se pisen entre sí.
+// Imprime solo el ticket (80mm) o el reporte de cierre.
+//
+// Antes se ocultaba el resto de la página con visibility:hidden, pero eso deja todo el
+// contenido ocupando espacio: la impresora térmica sacaba el ticket y luego una tira
+// en blanco del largo de la página entera. Ahora se copia el documento a imprimir a un
+// contenedor propio y, mientras se imprime, todo lo demás queda con display:none,
+// así el papel mide exactamente lo que mide el ticket.
+const SELECTORES = {
+  ticket: '.recibo-imprimible',
+  reporte: '.reporte-imprimible'
+};
+
 export function imprimirDocumento(tipo) {
+  // Por si quedó algo de una impresión anterior
+  document.getElementById('estilo-pagina-impresion')?.remove();
+  document.getElementById('zona-impresion')?.remove();
+
   const estilo = document.createElement('style');
   estilo.id = 'estilo-pagina-impresion';
   estilo.innerHTML =
     tipo === 'ticket'
       ? '@page { size: 80mm auto; margin: 0; }'
       : '@page { size: auto; margin: 12mm; }';
-
   document.head.appendChild(estilo);
 
+  const elementos = document.querySelectorAll(SELECTORES[tipo] || SELECTORES.reporte);
+  const origen = elementos[elementos.length - 1];
+  if (origen) {
+    const zona = document.createElement('div');
+    zona.id = 'zona-impresion';
+    zona.appendChild(origen.cloneNode(true));
+    document.body.appendChild(zona);
+    document.body.classList.add('imprimiendo');
+  }
+
+  let limpio = false;
   function limpiar() {
+    if (limpio) return;
+    limpio = true;
     document.getElementById('estilo-pagina-impresion')?.remove();
+    document.getElementById('zona-impresion')?.remove();
+    document.body.classList.remove('imprimiendo');
     window.removeEventListener('afterprint', limpiar);
   }
   window.addEventListener('afterprint', limpiar);
@@ -24,11 +52,10 @@ export function imprimirDocumento(tipo) {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         window.print();
+        // Respaldo: si 'afterprint' nunca dispara (pasa en algunos navegadores o
+        // impresoras virtuales), igual limpiamos un rato después de cerrar el diálogo.
+        setTimeout(limpiar, 2000);
       });
     });
   });
-
-  // Respaldo: si por algún motivo 'afterprint' nunca dispara (pasa en algunos
-  // navegadores/impresoras virtuales), igual limpiamos el estilo más tarde.
-  setTimeout(limpiar, 5000);
 }

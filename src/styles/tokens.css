@@ -990,6 +990,26 @@ span[style*='font-size: 10px'][style*='border: 1px solid'] {
   display: none;
 }
 
+/* Mientras se imprime (ver utils/imprimir.js) solo existe #zona-impresion:
+   el resto se quita del flujo para que el papel no salga del largo de la página. */
+@media print {
+  html,
+  body.imprimiendo {
+    height: auto !important;
+    min-height: 0 !important;
+    background: #fff !important;
+  }
+
+  body.imprimiendo > *:not(#zona-impresion) {
+    display: none !important;
+  }
+
+  #zona-impresion .recibo-imprimible,
+  #zona-impresion .reporte-imprimible {
+    position: static !important;
+  }
+}
+
 @media print {
 
   body * {
